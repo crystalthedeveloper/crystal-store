@@ -1,3 +1,4 @@
+// src/app/(store)/category/[slug]/page.tsx
 import * as Commerce from "commerce-kit";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next/types";

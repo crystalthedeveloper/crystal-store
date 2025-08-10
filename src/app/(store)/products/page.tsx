@@ -1,3 +1,4 @@
+// src/app/(store)/products/page.tsx
 import * as Commerce from "commerce-kit";
 import type { Metadata } from "next/types";
 import { publicUrl } from "@/env.mjs";

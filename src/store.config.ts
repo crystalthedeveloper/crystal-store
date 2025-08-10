@@ -1,21 +1,25 @@
-import AccessoriesImage from "@/images/accessories.jpg";
+import SupportImage from "@/images/accessories.jpg";
+import WebflowImage from "@/images/accessories.jpg";
 import ApparelImage from "@/images/apparel.jpg";
+import MaintenanceImage from "@/images/apparel.jpg";
 
 export const config = {
 	categories: [
+		{ name: "Webflow", slug: "webflow", image: WebflowImage },
+		{ name: "Maintenance", slug: "maintenance", image: MaintenanceImage },
 		{ name: "Apparel", slug: "apparel", image: ApparelImage },
-		{ name: "Accessories", slug: "accessories", image: AccessoriesImage },
+		{ name: "Support", slug: "support", image: SupportImage },
 	],
 
 	social: {
-		x: "https://x.com/yourstore",
-		facebook: "https://facebook.com/yourstore",
+		x: "https://www.instagram.com/crystalthedeveloper",
+		facebook: "https://www.facebook.com/Crystalthedeveloper",
 	},
 
 	contact: {
-		email: "support@yourstore.com",
-		phone: "+1 (555) 111-4567",
-		address: "123 Store Street, City, Country",
+		email: "contact@crystalthedeveloper.ca",
+		phone: "+416-452-2203",
+		address: "50 absolute avenue mississauga on l4z 0a8",
 	},
 };
 
