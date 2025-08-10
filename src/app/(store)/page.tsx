@@ -1,6 +1,6 @@
 import * as Commerce from "commerce-kit";
+import type { Metadata } from "next";
 import Image from "next/image";
-import type { Metadata } from "next/types";
 import { publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
 import StoreConfig from "@/store.config";
@@ -8,9 +8,10 @@ import { CategoryBox } from "@/ui/category-box";
 import { ProductList } from "@/ui/products/product-list";
 import { YnsLink } from "@/ui/yns-link";
 
-export const metadata = {
+export const metadata: Metadata = {
+	// ✅ explicitly typed
 	alternates: { canonical: publicUrl },
-} satisfies Metadata;
+};
 
 export default async function Home() {
 	const products = await Commerce.productBrowse({ first: 6 });
@@ -21,23 +22,43 @@ export default async function Home() {
 			<section className="rounded bg-neutral-100 py-8 sm:py-12">
 				<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
 					<div className="max-w-md space-y-4">
-						<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">{t("hero.title")}</h2>
-						<p className="text-pretty text-neutral-600">{t("hero.description")}</p>
-						<YnsLink
-							className="inline-flex h-10 items-center justify-center rounded-full bg-neutral-900 px-6 font-medium text-neutral-50 transition-colors hover:bg-neutral-900/90 focus:outline-hidden focus:ring-1 focus:ring-neutral-950"
-							href={t("hero.link")}
-						>
-							{t("hero.action")}
-						</YnsLink>
+						<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+							Shop, Style, Create — and Support the Dev
+						</h2>
+						<p className="text-pretty text-neutral-600">
+							Explore everything from sleek Webflow templates and innovative apps to premium eCommerce designs
+							and everyday hoodies. Your support — whether by shopping or chipping in — directly helps keep
+							the projects, creativity, and code flowing.
+						</p>
+
+						<div className="flex gap-4">
+							<YnsLink
+								className="inline-flex h-10 items-center justify-center rounded-full bg-neutral-900 px-6 font-medium text-neutral-50 transition-colors hover:bg-neutral-900/90 focus:outline-hidden focus:ring-1 focus:ring-neutral-950"
+								href="/category/webflow"
+								aria-label="View Webflow category"
+							>
+								{t("hero.action")}
+							</YnsLink>
+
+							<YnsLink
+								className="inline-flex h-10 items-center justify-center rounded-full px-6 font-medium text-black transition-colors hover:opacity-90 focus:outline-hidden focus:ring-1 focus:ring-yellow-600"
+								style={{ backgroundColor: "#ffe600" }}
+								href="/category/support"
+								aria-label="Support the Dev"
+							>
+								Support the Dev
+							</YnsLink>
+						</div>
 					</div>
+
 					<Image
-						alt="Cup of Coffee"
+						alt="crystal The Developere"
 						loading="eager"
 						priority={true}
 						className="rounded"
 						height={450}
 						width={450}
-						src="https://files.stripe.com/links/MDB8YWNjdF8xT3BaeG5GSmNWbVh6bURsfGZsX3Rlc3RfaDVvWXowdU9ZbWlobUIyaHpNc1hCeDM200NBzvUjqP"
+						src="/crystalthedeveloper-logo.png"
 						style={{
 							objectFit: "cover",
 						}}

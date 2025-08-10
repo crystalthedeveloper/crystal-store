@@ -1,9 +1,10 @@
 // src/app/(store)/product/[slug]/page.tsx
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import type { Metadata } from "next/types";
 import { Suspense } from "react";
-import { ProductImageModal } from "@/app/(store)/product/[slug]/product-image-modal"; // ✅ add back
+
+import { ProductImageModal } from "@/app/(store)/product/[slug]/product-image-modal";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -16,36 +17,19 @@ import { publicUrl } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getProductWithPrices, type KitPrice, type KitProduct } from "@/lib/products/getProductWithPrices";
 import { getVariantSelections } from "@/lib/products/getVariantSelections";
-import { getRecommendedProducts } from "@/lib/search/trieve";
-import { cn, deslugify, formatMoney, formatProductName } from "@/lib/utils";
-import type { TrieveProductMetadata } from "@/scripts/upload-trieve";
+import { getWebflowSelections } from "@/lib/products/getWebflowProductData";
+import { deslugify, formatProductName } from "@/lib/utils";
 import { AddToCartButton } from "@/ui/add-to-cart-button";
 import { JsonLd, mappedProductToJsonLd } from "@/ui/json-ld";
 import { Markdown } from "@/ui/markdown";
 import { MainProductImage } from "@/ui/products/main-product-image";
+import { PriceLabel } from "@/ui/products/PriceLabel";
+import { SimilarProducts } from "@/ui/products/SimilarProducts";
+import { TextPairsSection } from "@/ui/products/TextPairsSection";
+import { VariantPickers } from "@/ui/products/VariantPickers";
+import { WebflowLinks } from "@/ui/products/WebflowLinks";
 import { StickyBottom } from "@/ui/sticky-bottom";
 import { YnsLink } from "@/ui/yns-link";
-
-/* ---------------- helpers ---------------- */
-function isUrl(v?: string): v is string {
-	return typeof v === "string" && /^https?:\/\//i.test(v);
-}
-
-/** Parse "Title - Text - Title - Text ..." into [{title, text}] */
-function parseFeaturePairs(raw?: string): Array<{ title: string; text: string }> {
-	if (!raw) return [];
-	const parts = raw
-		.split(" - ")
-		.map((s) => s.trim())
-		.filter(Boolean);
-	const items: Array<{ title: string; text: string }> = [];
-	for (let i = 0; i < parts.length; i += 2) {
-		const title = parts[i] ?? "";
-		const text = parts[i + 1] ?? "";
-		if (title || text) items.push({ title, text });
-	}
-	return items;
-}
 
 /* ------------------ Metadata (Apparel-aware) ------------------ */
 export const generateMetadata = async (props: {
@@ -80,10 +64,10 @@ export const generateMetadata = async (props: {
 /* ------------------------------ Page ------------------------------ */
 export default async function SingleProductPage(props: {
 	params: Promise<{ slug: string }>;
-	searchParams: Promise<{ color?: string; size?: string; image?: string }>;
+	searchParams: Promise<{ color?: string; size?: string; image?: string; debug?: string }>;
 }) {
 	const { slug } = await props.params;
-	const { color, size, image } = await props.searchParams;
+	const { color, size, image, debug } = await props.searchParams;
 
 	let product: KitProduct;
 	let prices: KitPrice[];
@@ -92,6 +76,11 @@ export default async function SingleProductPage(props: {
 	} catch {
 		return notFound();
 	}
+
+	// --- Server logs: product + prices snapshot ---
+	console.log("Server/Product page ▶ slug:", slug);
+	console.log("Server/Product page ▶ product.meta:", product.metadata);
+	console.log("Server/Product page ▶ price count:", prices?.length);
 
 	const isApparel = (product.metadata?.category ?? "").toLowerCase() === "apparel";
 	const t = await getTranslations("/product.page");
@@ -108,6 +97,9 @@ export default async function SingleProductPage(props: {
 				selectedPrice: (product.default_price as unknown as KitPrice) ?? undefined,
 			};
 
+	console.log("Server/Product page ▶ isApparel:", isApparel);
+	console.log("Server/Product page ▶ selectedPrice.meta:", selectedPrice?.metadata);
+
 	// Images (prefer variant image_url)
 	const baseImages = Array.isArray(product.images) ? product.images : [];
 	const selectedPriceImage = isApparel ? (selectedPrice?.metadata?.image_url ?? "") : "";
@@ -118,22 +110,39 @@ export default async function SingleProductPage(props: {
 	const imageIndex = typeof image === "string" ? Number(image) : 0;
 	const mainImage = images[imageIndex] ?? images[0];
 
-	const category = product.metadata.category;
+	// Webflow-specific selections (product-only category, price can add links/features/license)
+	const webflow = await getWebflowSelections(product, selectedPrice);
+	const { isWebflow, links, featurePairs, license } = webflow;
 
-	// ✅ Safely read only string metadata from Stripe (ignore unknown keys)
-	const rawMeta = (product.metadata ?? {}) as Record<string, unknown>;
+	// --- Server logs: webflow block ---
+	console.log("Server/Product page ▶ isWebflow:", isWebflow);
+	console.log("Server/Product page ▶ links:", links);
+	console.log("Server/Product page ▶ featurePairs.length:", featurePairs?.length ?? 0);
+	console.log("Server/Product page ▶ license?", Boolean(license));
 
-	const meta = {
-		demo_url: typeof rawMeta.demo_url === "string" ? rawMeta.demo_url : undefined,
-		website_url: typeof rawMeta.website_url === "string" ? rawMeta.website_url : undefined,
-		features: typeof rawMeta.features === "string" ? rawMeta.features : undefined,
-		license: typeof rawMeta.license === "string" ? rawMeta.license : undefined,
-	};
-
-	const featurePairs = parseFeaturePairs(meta.features);
+	// Price to show
+	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
+	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
 
 	return (
 		<article className="pb-12">
+			{process.env.NODE_ENV === "development" && debug === "meta" && (
+				<pre className="mb-4 overflow-auto rounded border bg-neutral-50 p-3 text-xs text-neutral-700">
+					{JSON.stringify(
+						{
+							category: product.metadata?.category,
+							isWebflow,
+							hasSelectedPriceMeta: !!selectedPrice?.metadata,
+							links,
+							featurePairsCount: featurePairs.length,
+							hasLicense: !!license,
+						},
+						null,
+						2,
+					)}
+				</pre>
+			)}
+
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
@@ -142,12 +151,14 @@ export default async function SingleProductPage(props: {
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 
-					{category && (
+					{product.metadata?.category && (
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
 								<BreadcrumbLink className="inline-flex min-h-12 min-w-12 items-center justify-center" asChild>
-									<YnsLink href={`/category/${category}`}>{deslugify(category)}</YnsLink>
+									<YnsLink href={`/category/${product.metadata.category}`}>
+										{deslugify(product.metadata.category)}
+									</YnsLink>
 								</BreadcrumbLink>
 							</BreadcrumbItem>
 						</>
@@ -177,21 +188,7 @@ export default async function SingleProductPage(props: {
 				<div className="mt-4 grid gap-4 lg:grid-cols-12">
 					<div className="lg:col-span-5 lg:col-start-8">
 						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
-
-						{selectedPrice?.unit_amount != null ? (
-							<p className="mt-2 text-2xl font-medium leading-none tracking-tight text-foreground/70">
-								{formatMoney({ amount: selectedPrice.unit_amount, currency: selectedPrice.currency, locale })}
-							</p>
-						) : product.default_price?.unit_amount ? (
-							<p className="mt-2 text-2xl font-medium leading-none tracking-tight text-foreground/70">
-								{formatMoney({
-									amount: product.default_price.unit_amount,
-									currency: product.default_price.currency,
-									locale,
-								})}
-							</p>
-						) : null}
-
+						<PriceLabel amount={displayAmount} currency={displayCurrency} locale={locale} />
 						<div className="mt-2">
 							{typeof product.metadata.stock === "number" && product.metadata.stock <= 0 && (
 								<div>Out of stock</div>
@@ -244,120 +241,32 @@ export default async function SingleProductPage(props: {
 							</div>
 						</section>
 
-						{(isUrl(meta.demo_url) || isUrl(meta.website_url)) && (
-							<div className="mt-6 flex flex-wrap gap-3">
-								{isUrl(meta.demo_url) && (
-									<a
-										href={meta.demo_url}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-neutral-100"
-									>
-										View Live Demo
-									</a>
+						{/* Webflow-only extras */}
+						{isWebflow && (links.length > 0 || featurePairs.length > 0 || !!license) && (
+							<>
+								<WebflowLinks links={links} />
+
+								{/* Features dropdown */}
+								{featurePairs.length > 0 && (
+									<TextPairsSection
+										heading="Features"
+										items={featurePairs}
+										defaultOpen // remove this if you want it collapsed by default
+									/>
 								)}
-								{isUrl(meta.website_url) && (
-									<a
-										href={meta.website_url}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-neutral-100"
-									>
-										Visit Website
-									</a>
-								)}
-							</div>
+
+								{/* License dropdown */}
+								{license && <TextPairsSection heading="License" raw={license} />}
+							</>
 						)}
 
-						{featurePairs.length > 0 && (
-							<section className="mt-8">
-								<h3 className="mb-3 text-lg font-semibold">Features</h3>
-								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{featurePairs.map(({ title, text }, i) => (
-										<div key={`${title}-${i}`} className="rounded-lg border bg-card p-4 shadow-sm">
-											{title && (
-												<p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-													Features
-												</p>
-											)}
-											{title && <h4 className="mt-1 text-base font-medium">{title}</h4>}
-											{text && <p className="mt-2 text-sm text-secondary-foreground">{text}</p>}
-										</div>
-									))}
-								</div>
-							</section>
-						)}
-
-						{meta.license && (
-							<section className="mt-8">
-								<h3 className="mb-3 text-lg font-semibold">License</h3>
-								<p className="whitespace-pre-line text-sm text-secondary-foreground">{meta.license}</p>
-							</section>
-						)}
-
-						{isApparel && allColors.length > 0 && (
-							<div className="grid gap-2">
-								<p className="text-base font-medium" id="color-label">
-									Color
-								</p>
-								<ul role="list" className="grid grid-cols-4 gap-2" aria-labelledby="color-label">
-									{allColors.map((c) => {
-										const qp = new URLSearchParams();
-										qp.set("color", c);
-										if (selectedSize) qp.set("size", selectedSize);
-										const isSelected = c === selectedColor;
-										return (
-											<li key={c}>
-												<YnsLink
-													scroll={false}
-													prefetch
-													href={`?${qp}`}
-													className={cn(
-														"flex cursor-pointer items-center justify-center gap-2 rounded-md border p-2 transition-colors hover:bg-neutral-100",
-														isSelected && "border-black bg-neutral-50 font-medium",
-													)}
-													aria-selected={isSelected}
-												>
-													{deslugify(c)}
-												</YnsLink>
-											</li>
-										);
-									})}
-								</ul>
-							</div>
-						)}
-
-						{isApparel && sizesForColor.length > 0 && (
-							<div className="grid gap-2">
-								<p className="text-base font-medium" id="size-label">
-									Size
-								</p>
-								<ul role="list" className="grid grid-cols-4 gap-2" aria-labelledby="size-label">
-									{sizesForColor.map((s) => {
-										const qp = new URLSearchParams();
-										if (selectedColor) qp.set("color", selectedColor);
-										qp.set("size", s);
-										const isSelected = s === selectedSize;
-										return (
-											<li key={s}>
-												<YnsLink
-													scroll={false}
-													prefetch
-													href={`?${qp}`}
-													className={cn(
-														"flex cursor-pointer items-center justify-center gap-2 rounded-md border p-2 transition-colors hover:bg-neutral-100",
-														isSelected && "border-black bg-neutral-50 font-medium",
-													)}
-													aria-selected={isSelected}
-												>
-													{deslugify(s)}
-												</YnsLink>
-											</li>
-										);
-									})}
-								</ul>
-							</div>
-						)}
+						<VariantPickers
+							isApparel={isApparel}
+							allColors={allColors}
+							sizesForColor={sizesForColor}
+							selectedColor={selectedColor}
+							selectedSize={selectedSize}
+						/>
 
 						<AddToCartButton productId={product.id} disabled={product.metadata.stock <= 0} />
 					</div>
@@ -374,51 +283,5 @@ export default async function SingleProductPage(props: {
 
 			<JsonLd jsonLd={mappedProductToJsonLd(product)} />
 		</article>
-	);
-}
-
-async function SimilarProducts({ id }: { id: string }) {
-	const products = await getRecommendedProducts({ productId: id, limit: 4 });
-	if (!products) return null;
-
-	return (
-		<section className="py-12">
-			<div className="mb-8">
-				<h2 className="text-2xl font-bold tracking-tight">You May Also Like</h2>
-			</div>
-			<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-				{products.map((p) => {
-					const trieveMetadata = p.metadata as TrieveProductMetadata;
-					return (
-						<div key={p.tracking_id} className="overflow-hidden rounded bg-card shadow-sm">
-							{trieveMetadata.image_url && (
-								<YnsLink href={`${publicUrl}${p.link}`} className="block" prefetch={false}>
-									<Image
-										className="w-full rounded-lg bg-neutral-100 object-cover object-center transition-opacity group-hover:opacity-80"
-										src={trieveMetadata.image_url}
-										width={300}
-										height={300}
-										sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 300px"
-										alt=""
-									/>
-								</YnsLink>
-							)}
-							<div className="p-4">
-								<h3 className="mb-2 text-lg font-semibold">
-									<YnsLink href={p.link || "#"} className="hover:text-primary" prefetch={false}>
-										{trieveMetadata.name}
-									</YnsLink>
-								</h3>
-								<div className="flex items-center justify-between">
-									<span>
-										{formatMoney({ amount: trieveMetadata.amount, currency: trieveMetadata.currency })}
-									</span>
-								</div>
-							</div>
-						</div>
-					);
-				})}
-			</div>
-		</section>
 	);
 }

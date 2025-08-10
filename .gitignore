@@ -2,7 +2,8 @@
 src/gql/
 
 .env
-.env.example
+#.env.example
+
 # dependencies
 /node_modules
 /.pnp
