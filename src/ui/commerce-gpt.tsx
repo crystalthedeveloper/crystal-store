@@ -1,33 +1,62 @@
+// src/ui/commerce-gpt.tsx
 "use client";
 
 import { useChat } from "@ai-sdk/react";
 import { ArrowUp, ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { startTransition, useEffect, useRef, useState } from "react";
-import { commerceGPTRevalidateAction, setInitialCartCookiesAction } from "@/actions/cart-actions";
+import React, { type ComponentProps, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ProductList } from "./commercegpt/product-list";
 import { YnsLink } from "./yns-link";
 
-export function CommerceGPT() {
-	const { messages, input, handleInputChange, handleSubmit, append, data } = useChat({});
+// ---- minimal, explicit runtime guards (no `any`)
+type TextUIPart = { type: "text"; text: string };
+type DynamicToolPartCommon = {
+	type: "dynamic-tool";
+	toolName?: unknown;
+	state: "input-streaming" | "input-available" | "output-available" | "output-error";
+	output?: unknown;
+	toolCallId?: unknown;
+};
+type ProductSearchTypedPart = {
+	// typed tool part if your tool is named `productSearch`
+	type: "tool-productSearch";
+	state: "input-streaming" | "input-available" | "output-available" | "output-error";
+	output?: unknown;
+	toolCallId?: unknown;
+};
 
-	useEffect(() => {
-		const d = data as Array<{ operation?: "cartAdd"; cartId: string } | undefined> | undefined;
-		const cartId = d?.find((d) => d?.operation === "cartAdd")?.cartId;
-		if (cartId) {
-			startTransition(async () => {
-				await setInitialCartCookiesAction(cartId, 1);
-				await commerceGPTRevalidateAction();
-			});
-		}
-	}, [data]);
+function isTextPart(p: unknown): p is TextUIPart {
+	return (
+		!!p &&
+		typeof p === "object" &&
+		(p as { type?: unknown }).type === "text" &&
+		typeof (p as { text?: unknown }).text === "string"
+	);
+}
+
+function isDynamicProductSearchPart(p: unknown): p is DynamicToolPartCommon {
+	return (
+		!!p &&
+		typeof p === "object" &&
+		(p as { type?: unknown }).type === "dynamic-tool" &&
+		(p as { toolName?: unknown }).toolName === "productSearch" &&
+		typeof (p as { state?: unknown }).state === "string"
+	);
+}
+
+function isTypedProductSearchPart(p: unknown): p is ProductSearchTypedPart {
+	return !!p && typeof p === "object" && (p as { type?: unknown }).type === "tool-productSearch";
+}
+
+export function CommerceGPT() {
+	const { messages, sendMessage, status, stop } = useChat({});
+	const [input, setInput] = useState("");
 	const [isOpen, setIsOpen] = useState(false);
 
 	const pathname = usePathname();
-
 	const ref = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
@@ -41,6 +70,12 @@ export function CommerceGPT() {
 		window.addEventListener("keydown", handleEsc);
 		return () => window.removeEventListener("keydown", handleEsc);
 	}, []);
+
+	const sendUserText = (text: string) => {
+		if (!text.trim()) return;
+		// AI SDK v5: string or CreateUIMessage object is allowed. We use the object form.
+		sendMessage({ text });
+	};
 
 	return (
 		<div className="flex flex-col">
@@ -56,7 +91,7 @@ export function CommerceGPT() {
 								className="flex-none rounded-full bg-orange-600 px-3 py-1 text-sm font-semibold text-white shadow-xs hover:bg-orange-700 focus-visible:ring-0"
 								onClick={() => {
 									ref.current?.focus();
-									setIsOpen(!isOpen);
+									setIsOpen((v) => !v);
 								}}
 							>
 								Commerce GPT <ChevronDown />
@@ -72,6 +107,7 @@ export function CommerceGPT() {
 					</YnsLink>
 				</div>
 			</div>
+
 			<div
 				className={`z-100 overflow-clip fixed top-0 left-0 right-0 bg-neutral-50 transition-all duration-300 ease-in-out shadow-lg ${
 					isOpen ? "h-2/3" : "h-0"
@@ -94,7 +130,7 @@ export function CommerceGPT() {
 											variant="outline"
 											className="text-lg text-neutral-500"
 											size="lg"
-											onClick={() => append({ role: "user", content: "Show me some bags" })}
+											onClick={() => sendUserText("Show me some bags")}
 										>
 											Show me some bags
 										</Button>
@@ -102,79 +138,141 @@ export function CommerceGPT() {
 											variant="outline"
 											className="text-lg text-neutral-500"
 											size="lg"
-											onClick={() => append({ role: "user", content: "Show me cool sunglasses" })}
+											onClick={() => sendUserText("Show me cool sunglasses")}
 										>
 											Looking for cool glasses
 										</Button>
 									</div>
 								</div>
 							)}
-							{messages.map((m) => (
-								<div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-									<div
-										className={`text-lg rounded px-2 py-1 max-w-[80%] ${m.role === "user" ? "bg-linear-to-l from-orange-500 via-red-400 to-red-500 text-white" : (m.toolInvocations || []).length > 0 ? "bg-transparent" : "bg-neutral-100"}`}
-									>
-										{m.content}
-										{m.toolInvocations?.map((ti) => {
-											return (
-												ti.state === "result" && (
-													<div key={ti.toolCallId}>
-														{(() => {
-															switch (ti.toolName) {
-																case "productSearch":
-																	if (ti.output.length === 0) return <>No results</>;
-																	return (
-																		<div className="grid cols-1 gap-4">
-																			<ProductList products={ti.output} />
 
-																			<div className="flex flex-wrap justify-center gap-2 w-full">
-																				<Button
-																					variant="outline"
-																					className="text-lg text-neutral-500"
-																					size="lg"
-																					onClick={() =>
-																						append({
-																							role: "user",
-																							content: "Add the first product to the cart",
-																						})
-																					}
-																				>
-																					Add the first product to the cart
-																				</Button>
-																			</div>
-																		</div>
-																	);
-																default:
-																	return (
-																		<div className="text-lg rounded px-2 py-1 bg-neutral-100">
-																			{ti.output}
-																		</div>
-																	);
-															}
-														})()}
-													</div>
-												)
-											);
-										})}
+							{messages.map((message) => {
+								const role = message.role === "user" ? "user" : "assistant";
+								const hasTools = message.parts?.some(
+									(p) => isDynamicProductSearchPart(p) || isTypedProductSearchPart(p),
+								);
+								const bubbleClass =
+									role === "user"
+										? "bg-linear-to-l from-orange-500 via-red-400 to-red-500 text-white"
+										: hasTools
+											? "bg-transparent"
+											: "bg-neutral-100";
+
+								return (
+									<div
+										key={message.id}
+										className={`flex ${role === "user" ? "justify-end" : "justify-start"}`}
+									>
+										<div className={`text-lg rounded px-2 py-1 max-w-[80%] ${bubbleClass}`}>
+											{/* render text parts */}
+											{message.parts?.filter(isTextPart).map((p, i) => (
+												<span key={`${message.id}-text-${i}`}>{p.text}</span>
+											))}
+
+											{/* render tool parts (typed + dynamic) */}
+											{message.parts?.map((part, idx) => {
+												const key = `${message.id}-tool-${idx}`;
+
+												// Dynamic tools (no compile-time type), e.g. MCP or unknown tools:
+												if (isDynamicProductSearchPart(part)) {
+													if (part.state !== "output-available") return null;
+													const out = (part.output ?? []) as unknown;
+
+													// Type-safe prop inference from your component (no `any`)
+													type PLProps = ComponentProps<typeof ProductList>;
+													const products = out as PLProps["products"];
+
+													if (!Array.isArray(out) || (Array.isArray(out) && out.length === 0)) {
+														return <div key={key}>No results</div>;
+													}
+													return (
+														<div key={key} className="grid grid-cols-1 gap-4">
+															<ProductList products={products} />
+															<div className="flex flex-wrap justify-center gap-2 w-full">
+																<Button
+																	variant="outline"
+																	className="text-lg text-neutral-500"
+																	size="lg"
+																	onClick={() => sendUserText("Add the first product to the cart")}
+																>
+																	Add the first product to the cart
+																</Button>
+															</div>
+														</div>
+													);
+												}
+
+												// Typed tool part (name known at compile time):
+												if (isTypedProductSearchPart(part)) {
+													if (part.state !== "output-available") return null;
+													const out = (part.output ?? []) as unknown;
+													type PLProps = ComponentProps<typeof ProductList>;
+													const products = out as PLProps["products"];
+
+													if (!Array.isArray(out) || (Array.isArray(out) && out.length === 0)) {
+														return <div key={key}>No results</div>;
+													}
+													return (
+														<div key={key} className="grid grid-cols-1 gap-4">
+															<ProductList products={products} />
+															<div className="flex flex-wrap justify-center gap-2 w-full">
+																<Button
+																	variant="outline"
+																	className="text-lg text-neutral-500"
+																	size="lg"
+																	onClick={() => sendUserText("Add the first product to the cart")}
+																>
+																	Add the first product to the cart
+																</Button>
+															</div>
+														</div>
+													);
+												}
+
+												return null;
+											})}
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 						</div>
-						<form onSubmit={handleSubmit} className="flex space-x-2 items-center">
+
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								const value = input.trim();
+								if (value) {
+									sendUserText(value);
+									setInput("");
+								}
+							}}
+							className="flex space-x-2 items-center"
+						>
 							<Input
 								value={input}
-								onChange={handleInputChange}
+								onChange={(e) => setInput(e.target.value)}
 								placeholder="What do you want to buy today?"
 								className="grow h-12 md:text-xl"
 								ref={ref}
 							/>
-							<Button type="submit" size="lg" className="rounded-full text-lg h-12">
+							<Button
+								type="submit"
+								size="lg"
+								className="rounded-full text-lg h-12"
+								disabled={status === "submitted" || status === "streaming"}
+							>
 								<ArrowUp />
 							</Button>
+							{status === "streaming" && (
+								<Button type="button" variant="outline" size="lg" onClick={() => stop()}>
+									Stop
+								</Button>
+							)}
 						</form>
 					</CardContent>
 				</Card>
 			</div>
+
 			{isOpen && (
 				<div
 					className="fixed inset-0 bg-black bg-opacity-50 transition-opacity ease-in-out duration-300"
