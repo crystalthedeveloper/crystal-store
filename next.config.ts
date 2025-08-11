@@ -4,58 +4,47 @@ import type { NextConfig } from "next/types";
 
 const withMDX = MDX();
 
-/**
- * Stable config (no Turbopack/canary-only flags)
- */
+// Webflow Cloud injects COSMIC_MOUNT_PATH (e.g. "/store").
+// Fallback to NEXT_PUBLIC_BASE_PATH if you ever set it locally.
+const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "")
+	// normalize: no trailing slash
+	.replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
 	reactStrictMode: true,
 
+	// Mount awareness (only active on Cloud; noop on Vercel)
+	basePath: base || undefined,
+	assetPrefix: base || undefined,
+
 	eslint: {
-		// keep CI/builds green even if lint errors exist
 		ignoreDuringBuilds: true,
 	},
 
 	// only enable standalone output inside Docker images
 	output: process.env.DOCKER ? "standalone" : undefined,
 
-	logging: {
-		fetches: { fullUrl: true },
-	},
+	logging: { fetches: { fullUrl: true } },
 
 	images: {
-		// Be explicit: Next prefers protocol + hostname (+ optional pathname)
 		remotePatterns: [
 			{ protocol: "https", hostname: "files.stripe.com" },
 			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
-			// If you truly need subdomains, add them explicitly or use ** wildcard (supported in recent Next)
 			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
-			// ⬇️ Add Printful hosts
 			{ protocol: "https", hostname: "files.cdn.printful.com" },
-			// (optional but handy for other Printful links you may hit)
 			{ protocol: "https", hostname: "files.printful.com" },
 			{ protocol: "https", hostname: "images.printful.com" },
-			// ⬇️ Webflow assets (needed if DevLink uses next/image)
+			// Webflow assets
 			{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
 			{ protocol: "https", hostname: "assets.website-files.com" },
-			// if your component references images from your site subdomain
-			{ protocol: "https", hostname: "*.webflow.io" },
+			{ protocol: "https", hostname: "**.webflow.io" },
 		],
 		formats: ["image/avif", "image/webp"],
 	},
 
-	// keep these if you actually import from them
 	transpilePackages: ["next-mdx-remote", "commerce-kit"],
 
-	/**
-	 * Experimental flags trimmed to ones that are stable-safe.
-	 * Removed:
-	 *  - ppr (canary only)
-	 *  - reactCompiler (canary/experimental)
-	 *  - mdxRs / inlineCss (canary-flaky on some versions)
-	 *  - cpus (not needed unless you’re tuning builds)
-	 */
 	experimental: {
-		// keep only what’s commonly safe across stable releases
 		esmExternals: true,
 		scrollRestoration: true,
 	},
@@ -64,7 +53,6 @@ const nextConfig: NextConfig = {
 		...config,
 		resolve: {
 			...config.resolve,
-			// helpful if a template sometimes imports .ts instead of .js, etc.
 			extensionAlias: {
 				".js": [".js", ".ts"],
 				".jsx": [".jsx", ".tsx"],
@@ -72,14 +60,8 @@ const nextConfig: NextConfig = {
 		},
 	}),
 
-	// example proxy; keep if you use it
 	async rewrites() {
-		return [
-			{
-				source: "/stats/:match*",
-				destination: "https://eu.umami.is/:match*",
-			},
-		];
+		return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
 	},
 };
 

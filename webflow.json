@@ -1,7 +1,13 @@
 {
+    "cosmic": {
+        "framework": "nextjs"
+    },
+    "cloud": {
+        "framework": "nextjs"
+    },
     "devlink": {
         "host": "https://api.webflow.com",
-        "rootDir": "./devlink",
+        "rootDir": "devlink",
         "cssModules": true
     }
 }
