@@ -19,12 +19,8 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"noUncheckedIndexedAccess": true,
-		"plugins": [
-			{
-				"name": "next"
-			}
-		],
-
+		"baseUrl": ".",
+		"plugins": [{ "name": "next" }],
 		"paths": {
 			"@/*": ["./src/*"],
 			"@ui/*": ["./src/ui/*"],
@@ -32,5 +28,5 @@
 		}
 	},
 	"include": ["next-fix.d.ts", "i18n.d.ts", "**/*.mjs", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules", "src/script/**/*.ts"]
+	"exclude": ["node_modules", "src/script/**/*.ts", "next.config.ts"]
 }
