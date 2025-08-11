@@ -3,7 +3,7 @@ import * as Commerce from "commerce-kit";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartModalProvider } from "@/context/cart-modal";
 //import { CommerceGPT } from "@/ui/commerce-gpt";
-import { Footer } from "@/ui/footer/Footer";
+import { Footer } from "@/ui/footer/footer";
 import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Nav } from "@/ui/nav/nav";
 import { CartModalPage } from "./cart/cart-modal";
