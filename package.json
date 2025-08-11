@@ -74,6 +74,7 @@
 		"@commitlint/types": "19.8.1",
 		"@next/env": "15.4.6",
 		"@next/mdx": "15.4.6",
+		"@opennextjs/cloudflare": "1.6.5",
 		"@semantic-release/changelog": "6.0.3",
 		"@semantic-release/commit-analyzer": "13.0.1",
 		"@semantic-release/git": "10.0.1",
