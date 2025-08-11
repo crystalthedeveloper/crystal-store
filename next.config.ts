@@ -2,64 +2,69 @@
 import MDX from "@next/mdx";
 import type { NextConfig } from "next/types";
 
-const withMDX = MDX();
+// MDX enhancer type
+type Enhance = (config: NextConfig) => NextConfig;
+const withMDXEnhancer = MDX() as unknown as Enhance;
 
-// Webflow Cloud injects COSMIC_MOUNT_PATH (e.g. "/store").
-// Fallback to NEXT_PUBLIC_BASE_PATH if you ever set it locally.
-const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, ""); // normalize: no trailing slash
+export default function nextConfigFactory(): NextConfig {
+	const isCloud = Boolean(process.env.COSMIC_MOUNT_PATH);
 
-const nextConfig: NextConfig = {
-	reactStrictMode: true,
+	// Normalize base path for Cloud mounts like "/store"
+	const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
 
-	basePath: base || undefined,
-	assetPrefix: base || undefined,
+	const baseConfig: NextConfig = {
+		reactStrictMode: true,
 
-	eslint: {
-		ignoreDuringBuilds: true,
-	},
+		// Active on Cloud, noop on Vercel (when base is empty)
+		basePath: base || undefined,
+		assetPrefix: base || undefined,
 
-	output: process.env.DOCKER ? "standalone" : undefined,
+		eslint: { ignoreDuringBuilds: true },
 
-	logging: { fetches: { fullUrl: true } },
+		// only enable standalone output inside Docker images
+		output: process.env.DOCKER ? "standalone" : undefined,
 
-	// Clone images object to avoid modifying frozen config
-	images: {
-		...{},
-		remotePatterns: [
-			{ protocol: "https", hostname: "files.stripe.com" },
-			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
-			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
-			{ protocol: "https", hostname: "files.cdn.printful.com" },
-			{ protocol: "https", hostname: "files.printful.com" },
-			{ protocol: "https", hostname: "images.printful.com" },
-			{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
-			{ protocol: "https", hostname: "assets.website-files.com" },
-			{ protocol: "https", hostname: "**.webflow.io" },
-		],
-		formats: ["image/avif", "image/webp"],
-	},
+		logging: { fetches: { fullUrl: true } },
 
-	transpilePackages: ["next-mdx-remote", "commerce-kit"],
-
-	experimental: {
-		esmExternals: true,
-		scrollRestoration: true,
-	},
-
-	webpack: (config) => ({
-		...config,
-		resolve: {
-			...config.resolve,
-			extensionAlias: {
-				".js": [".js", ".ts"],
-				".jsx": [".jsx", ".tsx"],
-			},
+		// Fresh object so nobody mutates a frozen one
+		images: {
+			remotePatterns: [
+				{ protocol: "https", hostname: "files.stripe.com" },
+				{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
+				{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
+				{ protocol: "https", hostname: "files.cdn.printful.com" },
+				{ protocol: "https", hostname: "files.printful.com" },
+				{ protocol: "https", hostname: "images.printful.com" },
+				{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
+				{ protocol: "https", hostname: "assets.website-files.com" },
+				{ protocol: "https", hostname: "**.webflow.io" },
+			],
+			formats: ["image/avif", "image/webp"],
 		},
-	}),
 
-	async rewrites() {
-		return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
-	},
-};
+		transpilePackages: ["next-mdx-remote", "commerce-kit"],
 
-export default withMDX(nextConfig);
+		experimental: {
+			esmExternals: true,
+			scrollRestoration: true,
+		},
+
+		webpack: (cfg) => ({
+			...cfg,
+			resolve: {
+				...cfg.resolve,
+				extensionAlias: {
+					".js": [".js", ".ts"],
+					".jsx": [".jsx", ".tsx"],
+				},
+			},
+		}),
+
+		async rewrites() {
+			return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
+		},
+	};
+
+	// Disable MDX on Webflow Cloud to avoid the frozen-config mutation crash
+	return isCloud ? baseConfig : withMDXEnhancer(baseConfig);
+}
