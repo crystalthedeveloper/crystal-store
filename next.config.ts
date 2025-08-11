@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
 			// (optional but handy for other Printful links you may hit)
 			{ protocol: "https", hostname: "files.printful.com" },
 			{ protocol: "https", hostname: "images.printful.com" },
+			// ⬇️ Webflow assets (needed if DevLink uses next/image)
+			{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
+			{ protocol: "https", hostname: "assets.website-files.com" },
+			// if your component references images from your site subdomain
+			{ protocol: "https", hostname: "*.webflow.io" },
 		],
 		formats: ["image/avif", "image/webp"],
 	},

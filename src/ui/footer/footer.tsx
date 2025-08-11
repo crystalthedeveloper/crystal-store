@@ -16,16 +16,16 @@ const sections = [
 		header: "Support",
 		links: [
 			{
-				label: "Features",
-				href: "https://yournextstore.com/#features",
+				label: "Jobs",
+				href: "https://www.crystalthedeveloper.ca/jobs",
 			},
 			{
-				label: "Pricing",
-				href: "https://yournextstore.com/#pricing",
+				label: "Website Pricing",
+				href: "https://www.crystalthedeveloper.ca/pricing",
 			},
 			{
 				label: "Contact Us",
-				href: "mailto:hi@yournextstore.com",
+				href: "mailto:contact@crystalthedeveloper.ca",
 			},
 		],
 	},
@@ -63,23 +63,23 @@ export async function Footer() {
 			</div>
 			<div className="container mt-8 flex max-w-7xl flex-col items-center justify-between gap-4 text-sm text-neutral-500 md:flex-row">
 				<div>
-					<p>© 2024 Your Next Store</p>
-					<p>Delightful commerce for everyone</p>
+					<p>2025 © Crystal The Developer Inc.</p>
+					<p>All rights reserved</p>
 				</div>
 				<div className="flex items-center gap-4">
 					<YnsLink
 						className="inline-flex items-center gap-1 transition-colors hover:text-neutral-700"
-						href="https://x.com/zaiste"
+						href="https://www.instagram.com/crystalthedeveloper"
 					>
-						<TwitterIcon className="h-4 w-4" /> @zaiste
-						<span className="sr-only">Twitter</span>
+						<TwitterIcon className="h-4 w-4" /> Instagram @crystalthedeveloper
+						<span className="sr-only">Instagram</span>
 					</YnsLink>
 					<YnsLink
 						className="inline-flex items-center gap-1 transition-colors hover:text-neutral-700"
-						href="https://x.com/typeofweb"
+						href="https://www.facebook.com/Crystalthedeveloper"
 					>
-						<TwitterIcon className="h-4 w-4" /> @typeofweb
-						<span className="sr-only">Twitter</span>
+						<TwitterIcon className="h-4 w-4" /> Facebook @crystalthedeveloper
+						<span className="sr-only">Facebook</span>
 					</YnsLink>
 				</div>
 			</div>

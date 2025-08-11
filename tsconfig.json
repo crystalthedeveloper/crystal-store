@@ -24,10 +24,12 @@
 				"name": "next"
 			}
 		],
+		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"],
 			"@ui/*": ["./src/ui/*"],
-			"@/components/ui/*": ["./src/ui/shadcn/*"]
+			"@/components/ui/*": ["./src/ui/shadcn/*"],
+			"@devlink/*": ["devlink/*"]
 		}
 	},
 	"include": ["next-fix.d.ts", "i18n.d.ts", "**/*.mjs", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

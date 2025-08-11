@@ -1,7 +1,7 @@
-import SupportImage from "@/images/accessories.jpg";
-import WebflowImage from "@/images/accessories.jpg";
 import ApparelImage from "@/images/apparel.jpg";
-import MaintenanceImage from "@/images/apparel.jpg";
+import MaintenanceImage from "@/images/maintenance.jpg";
+import SupportImage from "@/images/support.jpg";
+import WebflowImage from "@/images/webflow.jpg";
 
 export const config = {
 	categories: [
