@@ -16,7 +16,7 @@
 		"jsx": "preserve",
 		"incremental": true,
 		"allowUnreachableCode": true,
-		"noUnusedLocals": true,
+		"noUnusedLocals": false, // ⬅️ turn this off (Webflow’s override imports fs but doesn’t use it)
 		"noUnusedParameters": false,
 		"noUncheckedIndexedAccess": true,
 		"baseUrl": ".",
