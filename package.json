@@ -102,7 +102,8 @@
 		"tsx": "4.20.3",
 		"typescript": "5.9.2",
 		"vite-tsconfig-paths": "5.1.4",
-		"vitest": "3.2.4"
+		"vitest": "3.2.4",
+		"wrangler": "4.28.1"
 	},
 	"engines": {
 		"node": "^20.11.1 || ^22.0.0"
