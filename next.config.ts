@@ -4,30 +4,15 @@ import type { NextConfig } from "next/types";
 
 const withMDX = MDX();
 
-// Webflow Cloud injects COSMIC_MOUNT_PATH (e.g. "/store").
-// Fallback to NEXT_PUBLIC_BASE_PATH if you ever set it locally.
-const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "")
-	// normalize: no trailing slash
-	.replace(/\/$/, "");
+export default withMDX((phase: string, { defaultConfig }: { defaultConfig: NextConfig }) => {
+	// Webflow Cloud injects COSMIC_MOUNT_PATH (e.g. "/store")
+	const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
 
-const nextConfig: NextConfig = {
-	reactStrictMode: true,
-
-	// Mount awareness (only active on Cloud; noop on Vercel)
-	basePath: base || undefined,
-	assetPrefix: base || undefined,
-
-	eslint: {
-		ignoreDuringBuilds: true,
-	},
-
-	// only enable standalone output inside Docker images
-	output: process.env.DOCKER ? "standalone" : undefined,
-
-	logging: { fetches: { fullUrl: true } },
-
-	images: {
+	// Merge images safely (don’t assign on defaultConfig)
+	const mergedImages: NonNullable<NextConfig["images"]> = {
+		...(defaultConfig.images || {}),
 		remotePatterns: [
+			...(defaultConfig.images?.remotePatterns ?? []),
 			{ protocol: "https", hostname: "files.stripe.com" },
 			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
 			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
@@ -40,29 +25,62 @@ const nextConfig: NextConfig = {
 			{ protocol: "https", hostname: "**.webflow.io" },
 		],
 		formats: ["image/avif", "image/webp"],
-	},
+	};
 
-	transpilePackages: ["next-mdx-remote", "commerce-kit"],
+	// If you kept a custom webpack, wrap it so we don’t lose it
+	const userWebpack = defaultConfig.webpack;
 
-	experimental: {
-		esmExternals: true,
-		scrollRestoration: true,
-	},
+	return {
+		...defaultConfig,
 
-	webpack: (config) => ({
-		...config,
-		resolve: {
-			...config.resolve,
-			extensionAlias: {
-				".js": [".js", ".ts"],
-				".jsx": [".jsx", ".tsx"],
-			},
+		reactStrictMode: true,
+
+		// Mount awareness (noop on Vercel, active on Webflow Cloud)
+		basePath: base || undefined,
+		assetPrefix: base || undefined,
+
+		eslint: { ignoreDuringBuilds: true },
+
+		// only enable standalone output inside Docker images
+		output: process.env.DOCKER ? "standalone" : undefined,
+
+		logging: { fetches: { fullUrl: true } },
+
+		images: mergedImages,
+
+		transpilePackages: ["next-mdx-remote", "commerce-kit"],
+
+		experimental: {
+			...(defaultConfig.experimental || {}),
+			esmExternals: true,
+			scrollRestoration: true,
 		},
-	}),
 
-	async rewrites() {
-		return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
-	},
-};
+		webpack: (config, ctx) => {
+			const nextCfg = {
+				...config,
+				resolve: {
+					...config.resolve,
+					extensionAlias: {
+						".js": [".js", ".ts"],
+						".jsx": [".jsx", ".tsx"],
+					},
+				},
+			};
+			return userWebpack ? userWebpack(nextCfg, ctx) : nextCfg;
+		},
 
-export default withMDX(nextConfig);
+		async rewrites() {
+			// Merge with any existing rewrites if present
+			const existing =
+				typeof defaultConfig.rewrites === "function"
+					? await defaultConfig.rewrites()
+					: defaultConfig.rewrites || [];
+
+			// If existing is the object form {beforeFiles/afterFiles/fallback}, keep it;
+			// otherwise, treat as array and append ours.
+			if (!Array.isArray(existing)) return existing;
+			return [...existing, { source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
+		},
+	} satisfies NextConfig;
+});
