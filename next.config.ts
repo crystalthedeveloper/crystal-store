@@ -1,6 +1,7 @@
 // next.config.ts
 import type { NextConfig } from "next";
 
+const isCloud = !!process.env.COSMIC_MOUNT_PATH;
 const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
 
 const config: NextConfig = {
@@ -14,21 +15,25 @@ const config: NextConfig = {
 	output: process.env.DOCKER ? "standalone" : undefined,
 	logging: { fetches: { fullUrl: true } },
 
-	// Allow Stripe + other remotes for next/image
-	images: {
-		remotePatterns: [
-			{ protocol: "https", hostname: "files.stripe.com" },
-			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
-			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
-			{ protocol: "https", hostname: "files.cdn.printful.com" },
-			{ protocol: "https", hostname: "files.printful.com" },
-			{ protocol: "https", hostname: "images.printful.com" },
-			{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
-			{ protocol: "https", hostname: "assets.website-files.com" },
-			{ protocol: "https", hostname: "**.webflow.io" },
-		],
-		formats: ["image/avif", "image/webp"],
-	},
+	// Only set images locally/Vercel. On Webflow Cloud, let their override write it.
+	...(isCloud
+		? {}
+		: {
+				images: {
+					remotePatterns: [
+						{ protocol: "https", hostname: "files.stripe.com" },
+						{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
+						{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
+						{ protocol: "https", hostname: "files.cdn.printful.com" },
+						{ protocol: "https", hostname: "files.printful.com" },
+						{ protocol: "https", hostname: "images.printful.com" },
+						{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
+						{ protocol: "https", hostname: "assets.website-files.com" },
+						{ protocol: "https", hostname: "**.webflow.io" },
+					],
+					formats: ["image/avif", "image/webp"],
+				} as NonNullable<NextConfig["images"]>,
+			}),
 
 	transpilePackages: ["next-mdx-remote", "commerce-kit"],
 
