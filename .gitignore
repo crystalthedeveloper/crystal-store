@@ -2,6 +2,7 @@
 src/gql/
 
 .env
+.example
 .env.example
 
 # dependencies

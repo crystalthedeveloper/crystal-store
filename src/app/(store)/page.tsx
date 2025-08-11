@@ -33,20 +33,20 @@ export default async function Home() {
 
 						<div className="flex gap-4">
 							<YnsLink
+								href={t("hero.link")}
+								aria-label={t("hero.aria")}
 								className="inline-flex h-10 items-center justify-center rounded-full bg-neutral-900 px-6 font-medium text-neutral-50 transition-colors hover:bg-neutral-900/90 focus:outline-hidden focus:ring-1 focus:ring-neutral-950"
-								href="/category/webflow"
-								aria-label="View Webflow category"
 							>
 								{t("hero.action")}
 							</YnsLink>
 
 							<YnsLink
+								href={t("support.link")}
+								aria-label={t("support.aria")}
 								className="inline-flex h-10 items-center justify-center rounded-full px-6 font-medium text-black transition-colors hover:opacity-90 focus:outline-hidden focus:ring-1 focus:ring-yellow-600"
 								style={{ backgroundColor: "#ffe600" }}
-								href="/category/support"
-								aria-label="Support the Dev"
 							>
-								Support the Dev
+								{t("support.action")}
 							</YnsLink>
 						</div>
 					</div>
