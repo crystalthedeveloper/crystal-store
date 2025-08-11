@@ -5,12 +5,16 @@ const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH
 
 const config: NextConfig = {
 	reactStrictMode: true,
+
+	// Webflow Cloud mount awareness
 	basePath: base || undefined,
 	assetPrefix: base || undefined,
+
 	eslint: { ignoreDuringBuilds: true },
 	output: process.env.DOCKER ? "standalone" : undefined,
 	logging: { fetches: { fullUrl: true } },
 
+	// Define images here so it's already writable and includes Stripe
 	images: {
 		remotePatterns: [
 			{ protocol: "https", hostname: "files.stripe.com" },
@@ -27,7 +31,9 @@ const config: NextConfig = {
 	},
 
 	transpilePackages: ["next-mdx-remote", "commerce-kit"],
+
 	experimental: { esmExternals: true, scrollRestoration: true },
+
 	webpack: (cfg) => ({
 		...cfg,
 		resolve: {
@@ -35,6 +41,7 @@ const config: NextConfig = {
 			extensionAlias: { ".js": [".js", ".ts"], ".jsx": [".jsx", ".tsx"] },
 		},
 	}),
+
 	async rewrites() {
 		return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
 	},

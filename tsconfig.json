@@ -16,7 +16,7 @@
 		"jsx": "preserve",
 		"incremental": true,
 		"allowUnreachableCode": true,
-		"noUnusedLocals": false, // Webflow’s override imports fs but doesn’t use it
+		"noUnusedLocals": false,
 		"noUnusedParameters": false,
 		"noUncheckedIndexedAccess": true,
 		"baseUrl": ".",
@@ -28,5 +28,5 @@
 		}
 	},
 	"include": ["next-fix.d.ts", "i18n.d.ts", "**/*.mjs", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules", "src/script/**/*.ts", "next.config.ts"] // Do not type-check the Cloud override
+	"exclude": ["node_modules", "src/script/**/*.ts", "next.config.ts"]
 }
