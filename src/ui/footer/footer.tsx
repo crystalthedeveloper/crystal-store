@@ -1,3 +1,4 @@
+// src/ui/footer/footer.tsx
 import type { SVGAttributes } from "react";
 import { getTranslations } from "@/i18n/server";
 import StoreConfig from "@/store.config";
