@@ -121,11 +121,6 @@
 			"@semantic-release/github"
 		]
 	},
-	"lint-staged": {
-		"*": [
-			"bun biome check --write --staged --no-errors-on-unmatched --files-ignore-unknown=true"
-		]
-	},
 	"trustedDependencies": [
 		"@tailwindcss/oxide",
 		"@vercel/speed-insights",
