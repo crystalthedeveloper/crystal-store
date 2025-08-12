@@ -7,7 +7,7 @@
 	"type": "module",
 	"packageManager": "npm@10.9.2",
 	"scripts": {
-		"preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.startsWith('npm/')) { console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\nTo use pnpm instead, change package.json:packageManager to pnpm@<version> and commit a pnpm-lock.yaml.\\n'); process.exit(1); }\"",
+		"preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.startsWith('npm/')) { console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\n'); process.exit(1); }\"",
 		"dev": "next dev",
 		"dev:vercel": "VERCEL=1 node src/scripts/select-config.cjs && next dev",
 		"build": "node src/scripts/select-config.cjs && next build",
@@ -22,7 +22,7 @@
 	"dependencies": {
 		"@ai-sdk/openai": "2.0.0",
 		"@ai-sdk/react": "2.0.8",
-		"@neondatabase/serverless": "^0.10.0",
+		"@neondatabase/serverless": "0.9.5",
 		"@radix-ui/react-checkbox": "1.3.2",
 		"@radix-ui/react-collapsible": "1.1.11",
 		"@radix-ui/react-dialog": "1.1.14",
@@ -112,7 +112,8 @@
 		"wrangler": "4.28.1"
 	},
 	"engines": {
-		"node": "^20.11.1 || ^22.0.0"
+		"node": "^20.11.1 || ^22.0.0",
+		"npm": ">=10.9.2"
 	},
 	"release": {
 		"branches": [
