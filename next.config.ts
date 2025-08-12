@@ -1,11 +1,12 @@
 // next.config.ts
 import type { NextConfig } from "next";
 
-const isCloud = !!process.env.COSMIC_MOUNT_PATH;
 const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
 
-const config: NextConfig = {
+const cfg: NextConfig = {
 	reactStrictMode: true,
+
+	// Webflow Cloud mount awareness
 	basePath: base || undefined,
 	assetPrefix: base || undefined,
 
@@ -19,10 +20,7 @@ const config: NextConfig = {
 
 	webpack: (cfg) => ({
 		...cfg,
-		resolve: {
-			...cfg.resolve,
-			extensionAlias: { ".js": [".js", ".ts"], ".jsx": [".jsx", ".tsx"] },
-		},
+		resolve: { ...cfg.resolve, extensionAlias: { ".js": [".js", ".ts"], ".jsx": [".jsx", ".tsx"] } },
 	}),
 
 	async rewrites() {
@@ -30,9 +28,10 @@ const config: NextConfig = {
 	},
 };
 
-// Only include images in non-Cloud builds
-if (!isCloud) {
-	config.images = {
+// Add images only on Vercel (or locally if you set FORCE_LOCAL_IMAGES=1).
+// This avoids Webflow's override failing when it tries to assign `images`.
+if (process.env.VERCEL === "1" || process.env.FORCE_LOCAL_IMAGES === "1") {
+	(cfg as NextConfig & { images: NonNullable<NextConfig["images"]> }).images = {
 		remotePatterns: [
 			{ protocol: "https", hostname: "files.stripe.com" },
 			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
@@ -48,4 +47,4 @@ if (!isCloud) {
 	};
 }
 
-export default config;
+export default cfg;
