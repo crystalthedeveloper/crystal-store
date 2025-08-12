@@ -1,5 +1,4 @@
-// next.vercel.config.ts
-// next.vercel.config.ts — full config incl. images
+// next.vercel.config.ts  (Vercel: WITH `images`)
 import type { NextConfig } from "next";
 
 const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
@@ -8,9 +7,11 @@ const cfg: NextConfig = {
   reactStrictMode: true,
   basePath: base || undefined,
   assetPrefix: base || undefined,
+
   eslint: { ignoreDuringBuilds: true },
   output: process.env.DOCKER ? "standalone" : undefined,
   logging: { fetches: { fullUrl: true } },
+
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "files.stripe.com" },
@@ -25,8 +26,10 @@ const cfg: NextConfig = {
     ],
     formats: ["image/avif", "image/webp"],
   },
+
   transpilePackages: ["next-mdx-remote", "commerce-kit"],
   experimental: { esmExternals: true, scrollRestoration: true },
+
   webpack: (cfg) => ({
     ...cfg,
     resolve: {
@@ -34,6 +37,7 @@ const cfg: NextConfig = {
       extensionAlias: { ".js": [".js", ".ts"], ".jsx": [".jsx", ".tsx"] },
     },
   }),
+
   async rewrites() {
     return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
   },

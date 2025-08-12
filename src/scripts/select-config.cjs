@@ -1,18 +1,25 @@
 // src/scripts/select-config.cjs
-// Selects the right Next config before `next build`
 const fs = require("node:fs");
 
 const isVercel = !!process.env.VERCEL;
-const vercelFile = "next.vercel.config.ts";
-const target = "next.config.ts";
+const isWebflow = !!process.env.WEBFLOW;
 
-try {
-	if (isVercel && fs.existsSync(vercelFile)) {
-		fs.copyFileSync(vercelFile, target);
-		console.log("[build] Using next.vercel.config.ts");
-	} else {
-		console.log("[build] Using default next.config.ts");
-	}
-} catch (e) {
-	console.warn("[build] Config swap skipped:", e?.message);
+const target = "next.config.ts";
+let source;
+
+if (isVercel && fs.existsSync("next.vercel.config.ts")) {
+  source = "next.vercel.config.ts";
+  console.log("[build] Using next.vercel.config.ts");
+} else if (isWebflow && fs.existsSync("next.webflow.config.ts")) {
+  source = "next.webflow.config.ts";
+  console.log("[build] Using next.webflow.config.ts");
+} else if (fs.existsSync("next.webflow.config.ts")) {
+  source = "next.webflow.config.ts"; // default to Webflow-safe
+  console.log("[build] Using default next.webflow.config.ts");
+}
+
+if (source) {
+  fs.copyFileSync(source, target);
+} else {
+  console.warn("[build] No config file found to copy");
 }
