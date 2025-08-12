@@ -21,7 +21,6 @@ const cfg: NextConfig = {
   },
 };
 
-const config = { ...cfg };            // fresh, mutable object
+const config = { ...cfg }; 
 export default config;
-// Make Webflow's `require()` receive a plain object
 try { /* @ts-ignore */ module.exports = config; } catch {}
