@@ -1,8 +1,10 @@
 // src/app/(store)/cart-overlay/page.tsx
 import { redirect } from "next/navigation";
 
-// This page is rendered on full reload
-// We want to redirect to `/cart` to avoid conflict of the routes
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function RedirectToCart() {
 	redirect("/cart");
 }
