@@ -7,20 +7,23 @@
 	"type": "module",
 	"packageManager": "npm@11.5.2",
 	"scripts": {
-		"preinstall": "corepack enable || true; corepack prepare npm@11.5.2 --activate || true; node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.startsWith('npm/')) { console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\n'); process.exit(1); }\"",
+		"preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.startsWith('npm/')){ console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\n'); process.exit(1);} \" && (command -v corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1 && corepack prepare npm@11.5.2 --activate >/dev/null 2>&1 || true)",
 		"config:webflow": "WEBFLOW=1 node src/scripts/select-config.cjs",
 		"config:vercel": "VERCEL=1 node src/scripts/select-config.cjs",
 		"dev": "WEBFLOW=1 node src/scripts/select-config.cjs && next dev",
 		"dev:webflow": "WEBFLOW=1 node src/scripts/select-config.cjs && next dev",
 		"dev:vercel": "VERCEL=1 node src/scripts/select-config.cjs && next dev",
+		"dev:debug": "WEBFLOW=1 NEXT_DEBUG=true node src/scripts/select-config.cjs && next dev",
 		"build": "WEBFLOW=1 node src/scripts/select-config.cjs && next build",
 		"build:webflow": "WEBFLOW=1 node src/scripts/select-config.cjs && next build",
 		"build:vercel": "VERCEL=1 node src/scripts/select-config.cjs && next build",
+		"build:debug": "WEBFLOW=1 NEXT_DEBUG=true node src/scripts/select-config.cjs && next build",
 		"start": "next start",
 		"lint": "biome check --write",
 		"test": "vitest",
 		"docker:build": "docker build -t store .",
-		"docker:run": "docker run -d -p 3000:3000 store"
+		"docker:run": "docker run -d -p 3000:3000 store",
+		"clean": "node -e \"try{require('fs').rmSync('node_modules',{recursive:true,force:true});require('fs').rmSync('.next',{recursive:true,force:true});require('fs').rmSync('package-lock.json',{force:true});}catch(e){}\" && npm cache verify"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "2.0.0",
@@ -115,7 +118,7 @@
 		"wrangler": "4.28.1"
 	},
 	"engines": {
-		"node": "^20.11.1 || ^22.0.0",
+		"node": ">=20.19.0 <22 || >=22.12.0",
 		"npm": ">=11.5.2"
 	},
 	"release": {

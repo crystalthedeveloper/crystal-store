@@ -1,3 +1,4 @@
+// src/app/(store)/cart-overlay/page.tsx
 import { redirect } from "next/navigation";
 
 // This page is rendered on full reload
