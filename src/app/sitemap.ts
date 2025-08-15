@@ -1,61 +1,71 @@
+// src/app/sitemap.ts
 import * as Commerce from "commerce-kit";
 import type { MetadataRoute } from "next";
 import { env, publicUrl } from "@/env.mjs";
 import StoreConfig from "@/store.config";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic"; // don’t prerender; compute at request time
+export const dynamic = "force-dynamic";
 
 type Item = MetadataRoute.Sitemap[number];
 
+type ProductLite = {
+	updated?: number;
+	metadata?: { slug?: string | null; [k: string]: unknown };
+};
+
+function hasSlug(p: ProductLite): p is ProductLite & { metadata: { slug: string } } {
+	return typeof p?.metadata?.slug === "string" && p.metadata.slug.length > 0;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let productUrls: Item[] = [];
+	let productUrls: Item[] = [];
 
-  try {
-    if (env.STRIPE_SECRET_KEY) {
-      // Pass secret directly so commerce-kit won’t complain at build time
-      const products = await Commerce.productBrowse({
-        first: 100,
-        secretKey: env.STRIPE_SECRET_KEY,
-        tagPrefix: undefined,
-      } as unknown as Record<string, unknown>);
+	try {
+		if (env.STRIPE_SECRET_KEY) {
+			type BrowseArgs = Parameters<typeof Commerce.productBrowse>[0];
 
-      productUrls = products
-        .filter((p: any) => p?.metadata?.slug)
-        .map(
-          (product: any) =>
-            ({
-              url: `${publicUrl}/product/${product.metadata.slug}`,
-              lastModified: new Date(((product.updated ?? Date.now() / 1000) as number) * 1000),
-              changeFrequency: "daily",
-              priority: 0.8,
-            }) satisfies Item,
-        );
-    } else {
-      console.warn("sitemap: STRIPE_SECRET_KEY missing; skipping product URLs.");
-    }
-  } catch (e) {
-    console.warn("sitemap: failed to fetch products; continuing with static URLs.", e);
-  }
+			// Build args and cast once; no @ts-expect-error, no `any`
+			const args = {
+				first: 100,
+				...(env.STRIPE_SECRET_KEY ? { secretKey: env.STRIPE_SECRET_KEY } : {}),
+			} as unknown as BrowseArgs;
 
-  const categoryUrls: Item[] = StoreConfig.categories.map(
-    (category) =>
-      ({
-        url: `${publicUrl}/category/${category.slug}`,
-        lastModified: new Date(),
-        changeFrequency: "daily",
-        priority: 0.5,
-      }) satisfies Item,
-  );
+			const products = (await Commerce.productBrowse(args)) as unknown as ProductLite[];
 
-  return [
-    {
-      url: publicUrl,
-      lastModified: new Date(),
-      changeFrequency: "always",
-      priority: 1,
-    },
-    ...productUrls,
-    ...categoryUrls,
-  ];
+			productUrls = products.filter(hasSlug).map((product): Item => {
+				const seconds = typeof product.updated === "number" ? product.updated : Math.floor(Date.now() / 1000);
+				return {
+					url: `${publicUrl}/product/${product.metadata.slug}`,
+					lastModified: new Date(seconds * 1000),
+					changeFrequency: "daily",
+					priority: 0.8,
+				};
+			});
+		} else {
+			console.warn("sitemap: STRIPE_SECRET_KEY missing; skipping product URLs.");
+		}
+	} catch (e) {
+		console.warn("sitemap: failed to fetch products; continuing with static URLs.", e);
+	}
+
+	const categoryUrls: Item[] = StoreConfig.categories.map(
+		(category): Item => ({
+			url: `${publicUrl}/category/${category.slug}`,
+			lastModified: new Date(),
+			changeFrequency: "daily",
+			priority: 0.5,
+		}),
+	);
+
+	return [
+		{
+			url: publicUrl,
+			lastModified: new Date(),
+			changeFrequency: "always",
+			priority: 1,
+		},
+		...productUrls,
+		...categoryUrls,
+	];
 }
