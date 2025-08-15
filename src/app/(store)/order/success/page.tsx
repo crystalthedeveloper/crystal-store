@@ -1,5 +1,4 @@
-// app/(store)/order/success/page.tsx  (or your OrderDetails page)
-
+// app/(store)/order/success/page.tsx
 import type { PaymentIntent } from "@stripe/stripe-js";
 import * as Commerce from "commerce-kit";
 import type { Metadata } from "next";
@@ -24,28 +23,26 @@ export const generateMetadata = async (): Promise<Metadata> => {
   return { title: t("title") };
 };
 
-type SearchParams = {
-  payment_intent?: string | string[] | null;
-  payment_intent_client_secret?: string | string[] | null;
-};
+// Next 15 (React 19): searchParams is a Promise<Record<string, string | string[] | undefined>>
+type NextSearchParams = Record<string, string | string[] | undefined>;
 
 export default async function OrderDetailsPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams: Promise<NextSearchParams>;
 }) {
+  const sp = await searchParams;
+
   const pi =
-    typeof searchParams?.payment_intent === "string"
-      ? searchParams.payment_intent
-      : undefined;
+    typeof sp.payment_intent === "string" ? sp.payment_intent : undefined;
   const clientSecret =
-    typeof searchParams?.payment_intent_client_secret === "string"
-      ? searchParams.payment_intent_client_secret
+    typeof sp.payment_intent_client_secret === "string"
+      ? sp.payment_intent_client_secret
       : undefined;
 
   if (!pi || !clientSecret) return <div>Invalid order details</div>;
 
-  // If the secret isn't available during a static build, don't crash.
+  // Don’t break static builds if the secret isn’t present
   if (!env.STRIPE_SECRET_KEY) {
     const t = await getTranslations("/order.page");
     return (
@@ -53,14 +50,12 @@ export default async function OrderDetailsPage({
         <h1 className="mt-4 text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="mt-2">{t("description")}</p>
         <p className="mt-6 text-sm text-muted-foreground">
-          We’ll email your receipt shortly. (Stripe secret key not configured on
-          this environment.)
+          We’ll email your receipt shortly. (Stripe secret key not configured in this environment.)
         </p>
       </article>
     );
   }
 
-  // Safe to fetch full order now
   const order = await Commerce.orderGet(pi);
   if (!order) return <div>Order not found</div>;
 
