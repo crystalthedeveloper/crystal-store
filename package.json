@@ -5,9 +5,9 @@
 	"license": "AGPL-3.0-only",
 	"private": true,
 	"type": "module",
-	"packageManager": "npm@10.9.2",
+	"packageManager": "npm@11.5.2",
 	"scripts": {
-		"preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.startsWith('npm/')) { console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\n'); process.exit(1); }\"",
+		"preinstall": "corepack enable || true; corepack prepare npm@11.5.2 --activate || true; node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.startsWith('npm/')) { console.error('\\nThis project uses npm.\\nUse: npm install && npm run dev\\n'); process.exit(1); }\"",
 		"config:webflow": "WEBFLOW=1 node src/scripts/select-config.cjs",
 		"config:vercel": "VERCEL=1 node src/scripts/select-config.cjs",
 		"dev": "WEBFLOW=1 node src/scripts/select-config.cjs && next dev",
@@ -116,7 +116,7 @@
 	},
 	"engines": {
 		"node": "^20.11.1 || ^22.0.0",
-		"npm": ">=10.9.2"
+		"npm": ">=11.5.2"
 	},
 	"release": {
 		"branches": [
