@@ -2,9 +2,11 @@
 import type { PaymentIntent } from "@stripe/stripe-js";
 import * as Commerce from "commerce-kit";
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import Image from "next/image";
 import { type ComponentProps, Fragment } from "react";
 import { Badge } from "@/components/ui/badge";
+import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getCartCookieJson } from "@/lib/cart";
 import { findMatchingCountry } from "@/lib/countries";
@@ -12,309 +14,297 @@ import { formatMoney, formatProductName } from "@/lib/utils";
 import { paymentMethods } from "@/ui/checkout/checkout-card";
 import { ClearCookieClientComponent } from "@/ui/checkout/clear-cookie-client-component";
 import { Markdown } from "@/ui/markdown";
-import { env } from "@/env.mjs";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const prerender = false; // ⛔ do not prerender this route
+export const dynamic = "force-dynamic"; // ensure server-rendered at request time
+export const revalidate = 0; // no ISR
 
 export const generateMetadata = async (): Promise<Metadata> => {
-  const t = await getTranslations("/order.metadata");
-  return { title: t("title") };
+	const t = await getTranslations("/order.metadata");
+	return { title: t("title") };
 };
 
 // Next 15 (React 19): searchParams is a Promise<Record<string, string | string[] | undefined>>
 type NextSearchParams = Record<string, string | string[] | undefined>;
 
 export default async function OrderDetailsPage({
-  searchParams,
+	searchParams,
 }: {
-  searchParams: Promise<NextSearchParams>;
+	searchParams: Promise<NextSearchParams>;
 }) {
-  const sp = await searchParams;
+	noStore(); // never cache this page (order-specific, sensitive)
 
-  const pi =
-    typeof sp.payment_intent === "string" ? sp.payment_intent : undefined;
-  const clientSecret =
-    typeof sp.payment_intent_client_secret === "string"
-      ? sp.payment_intent_client_secret
-      : undefined;
+	const sp = await searchParams;
 
-  if (!pi || !clientSecret) return <div>Invalid order details</div>;
+	const pi = typeof sp.payment_intent === "string" ? sp.payment_intent : undefined;
+	const clientSecret =
+		typeof sp.payment_intent_client_secret === "string" ? sp.payment_intent_client_secret : undefined;
 
-  // Don’t break static builds if the secret isn’t present
-  if (!env.STRIPE_SECRET_KEY) {
-    const t = await getTranslations("/order.page");
-    return (
-      <article className="max-w-3xl pb-32">
-        <h1 className="mt-4 text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="mt-2">{t("description")}</p>
-        <p className="mt-6 text-sm text-muted-foreground">
-          We’ll email your receipt shortly. (Stripe secret key not configured in this environment.)
-        </p>
-      </article>
-    );
-  }
+	if (!pi || !clientSecret) return <div>Invalid order details</div>;
 
-  const order = await Commerce.orderGet(pi);
-  if (!order) return <div>Order not found</div>;
+	// Don’t break builds/environments without secrets
+	if (!env.STRIPE_SECRET_KEY) {
+		const t = await getTranslations("/order.page");
+		return (
+			<article className="max-w-3xl pb-32">
+				<h1 className="mt-4 text-3xl font-bold tracking-tight">{t("title")}</h1>
+				<p className="mt-2">{t("description")}</p>
+				<p className="mt-6 text-sm text-muted-foreground">
+					We’ll email your receipt shortly. (Stripe secret key not configured in this environment.)
+				</p>
+			</article>
+		);
+	}
 
-  const cookie = await getCartCookieJson();
-  const t = await getTranslations("/order.page");
-  const locale = await getLocale();
+	// Safe to fetch once secret exists
+	const order = await Commerce.orderGet(pi);
+	if (!order) return <div>Order not found</div>;
 
-  const isDigital = (lines: Commerce.Order["lines"]) =>
-    lines.some(({ product }) => Boolean(product.metadata.digitalAsset));
+	const cookie = await getCartCookieJson();
+	const t = await getTranslations("/order.page");
+	const locale = await getLocale();
 
-  return (
-    <article className="max-w-3xl pb-32">
-      <ClearCookieClientComponent cartId={order.order.id} cookieId={cookie?.id} />
-      <h1 className="mt-4 inline-flex items-center text-3xl font-bold leading-none tracking-tight">
-        {t("title")}
-        <PaymentStatus status={order.order.status} />
-      </h1>
-      <p className="mt-2">{t("description")}</p>
-      <dl className="mt-12 space-y-2 text-sm">
-        <dt className="font-semibold text-foreground">{t("orderNumberTitle")}</dt>
-        <dd className="text-accent-foreground">{order.order.id.slice(3)}</dd>
-      </dl>
+	const isDigital = (lines: Commerce.Order["lines"]) =>
+		lines.some(({ product }) => Boolean(product.metadata.digitalAsset));
 
-      <h2 className="sr-only">{t("productsTitle")}</h2>
-      <ul role="list" className="my-8 divide-y border-y">
-        {order.lines.map((line) => (
-          <li key={line.product.id} className="py-8">
-            <article className="grid grid-cols-[auto_1fr] grid-rows-[repeat(auto,3)] justify-start gap-x-4 sm:gap-x-8">
-              <h3 className="row-start-1 font-semibold leading-none text-neutral-700">
-                {formatProductName(line.product.name, line.product.metadata.variant)}
-              </h3>
+	return (
+		<article className="max-w-3xl pb-32">
+			<ClearCookieClientComponent cartId={order.order.id} cookieId={cookie?.id} />
+			<h1 className="mt-4 inline-flex items-center text-3xl font-bold leading-none tracking-tight">
+				{t("title")}
+				<PaymentStatus status={order.order.status} />
+			</h1>
+			<p className="mt-2">{t("description")}</p>
+			<dl className="mt-12 space-y-2 text-sm">
+				<dt className="font-semibold text-foreground">{t("orderNumberTitle")}</dt>
+				<dd className="text-accent-foreground">{order.order.id.slice(3)}</dd>
+			</dl>
 
-              {line.product.images.map((image) => (
-                <Image
-                  key={image}
-                  className="col-start-1 row-span-3 row-start-1 mt-0.5 w-16 rounded-lg object-cover object-center transition-opacity sm:mt-0 sm:w-32"
-                  src={image}
-                  width={128}
-                  height={128}
-                  alt=""
-                />
-              ))}
+			<h2 className="sr-only">{t("productsTitle")}</h2>
+			<ul role="list" className="my-8 divide-y border-y">
+				{order.lines.map((line) => (
+					<li key={line.product.id} className="py-8">
+						<article className="grid grid-cols-[auto_1fr] grid-rows-[repeat(auto,3)] justify-start gap-x-4 sm:gap-x-8">
+							<h3 className="row-start-1 font-semibold leading-none text-neutral-700">
+								{formatProductName(line.product.name, line.product.metadata.variant)}
+							</h3>
 
-              <div className="prose row-start-2 text-secondary-foreground">
-                <Markdown source={line.product.description || ""} />
-              </div>
+							{line.product.images.map((image) => (
+								<Image
+									key={image}
+									className="col-start-1 row-span-3 row-start-1 mt-0.5 w-16 rounded-lg object-cover object-center transition-opacity sm:mt-0 sm:w-32"
+									src={image}
+									width={128}
+									height={128}
+									alt=""
+								/>
+							))}
 
-              <footer className="row-start-3 mt-2 self-end">
-                <dl className="grid grid-cols-[max-content_auto] gap-2 sm:grid-cols-3">
-                  <div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
-                    <dt className="text-sm font-semibold text-foreground">{t("price")}</dt>
-                    <dd className="text-sm text-accent-foreground">
-                      {formatMoney({
-                        amount: line.product.default_price.unit_amount ?? 0,
-                        currency: line.product.default_price.currency,
-                        locale,
-                      })}
-                    </dd>
-                  </div>
+							<div className="prose row-start-2 text-secondary-foreground">
+								<Markdown source={line.product.description || ""} />
+							</div>
 
-                  <div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
-                    <dt className="text-sm font-semibold text-foreground">{t("quantity")}</dt>
-                    <dd className="text-sm text-accent-foreground">{line.quantity}</dd>
-                  </div>
+							<footer className="row-start-3 mt-2 self-end">
+								<dl className="grid grid-cols-[max-content_auto] gap-2 sm:grid-cols-3">
+									<div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
+										<dt className="text-sm font-semibold text-foreground">{t("price")}</dt>
+										<dd className="text-sm text-accent-foreground">
+											{formatMoney({
+												amount: line.product.default_price.unit_amount ?? 0,
+												currency: line.product.default_price.currency,
+												locale,
+											})}
+										</dd>
+									</div>
 
-                  <div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
-                    <dt className="text-sm font-semibold text-foreground">{t("total")}</dt>
-                    <dd className="text-sm text-accent-foreground">
-                      {formatMoney({
-                        amount:
-                          (line.product.default_price.unit_amount ?? 0) * line.quantity,
-                        currency: line.product.default_price.currency,
-                        locale,
-                      })}
-                    </dd>
-                  </div>
-                </dl>
-              </footer>
-            </article>
-          </li>
-        ))}
+									<div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
+										<dt className="text-sm font-semibold text-foreground">{t("quantity")}</dt>
+										<dd className="text-sm text-accent-foreground">{line.quantity}</dd>
+									</div>
 
-        {order.shippingRate?.fixed_amount && (
-          <li className="py-8">
-            <article className="grid grid-cols-[auto_1fr] grid-rows-[repeat(auto,3)] justify-start gap-x-4 sm:gap-x-8">
-              <h3 className="row-start-1 font-semibold leading-none text-neutral-700">
-                {order.shippingRate.display_name}
-              </h3>
-              <div className="col-start-1 row-span-3 row-start-1 mt-0.5 w-16 sm:mt-0 sm:w-32" />
-              <footer className="row-start-3 mt-2 self-end">
-                <dl className="grid grid-cols-[max-content_auto] gap-2 sm:grid-cols-3">
-                  <div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
-                    <dt className="text-sm font-semibold text-foreground">{t("price")}</dt>
-                    <dd className="text-sm text-accent-foreground">
-                      {formatMoney({
-                        amount: order.shippingRate.fixed_amount.amount ?? 0,
-                        currency: order.shippingRate.fixed_amount.currency,
-                        locale,
-                      })}
-                    </dd>
-                  </div>
-                </dl>
-              </footer>
-            </article>
-          </li>
-        )}
-      </ul>
+									<div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
+										<dt className="text-sm font-semibold text-foreground">{t("total")}</dt>
+										<dd className="text-sm text-accent-foreground">
+											{formatMoney({
+												amount: (line.product.default_price.unit_amount ?? 0) * line.quantity,
+												currency: line.product.default_price.currency,
+												locale,
+											})}
+										</dd>
+									</div>
+								</dl>
+							</footer>
+						</article>
+					</li>
+				))}
 
-      <div className="pl-20 sm:pl-40">
-        <h2 className="sr-only">{t("detailsTitle")}</h2>
+				{order.shippingRate?.fixed_amount && (
+					<li className="py-8">
+						<article className="grid grid-cols-[auto_1fr] grid-rows-[repeat(auto,3)] justify-start gap-x-4 sm:gap-x-8">
+							<h3 className="row-start-1 font-semibold leading-none text-neutral-700">
+								{order.shippingRate.display_name}
+							</h3>
+							<div className="col-start-1 row-span-3 row-start-1 mt-0.5 w-16 sm:mt-0 sm:w-32" />
+							<footer className="row-start-3 mt-2 self-end">
+								<dl className="grid grid-cols-[max-content_auto] gap-2 sm:grid-cols-3">
+									<div className="max-sm:col-span-2 max-sm:grid max-sm:grid-cols-subgrid">
+										<dt className="text-sm font-semibold text-foreground">{t("price")}</dt>
+										<dd className="text-sm text-accent-foreground">
+											{formatMoney({
+												amount: order.shippingRate.fixed_amount.amount ?? 0,
+												currency: order.shippingRate.fixed_amount.currency,
+												locale,
+											})}
+										</dd>
+									</div>
+								</dl>
+							</footer>
+						</article>
+					</li>
+				)}
+			</ul>
 
-        {isDigital(order.lines) && (
-          <div className="mb-8">
-            <h3 className="font-semibold leading-none text-neutral-700">Digital Asset</h3>
-            <ul className="mt-3">
-              {order.lines
-                .filter((line) => line.product.metadata.digitalAsset)
-                .map((line) => (
-                  <li key={line.product.id} className="text-sm">
-                    <a
-                      href={line.product.metadata.digitalAsset}
-                      target="_blank"
-                      download
-                      rel="noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      {line.product.name}
-                    </a>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
+			<div className="pl-20 sm:pl-40">
+				<h2 className="sr-only">{t("detailsTitle")}</h2>
 
-        <div className="grid gap-8 sm:grid-cols-2">
-          {!isDigital(order.lines) && order.order.shipping?.address && (
-            <div>
-              <h3 className="font-semibold leading-none text-neutral-700">
-                {t("shippingAddress")}
-              </h3>
-              <p className="mt-3 text-sm">
-                {[
-                  order.order.shipping.name,
-                  order.order.shipping.address.line1,
-                  order.order.shipping.address.line2,
-                  order.order.shipping.address.postal_code,
-                  order.order.shipping.address.city,
-                  order.order.shipping.address.state,
-                  findMatchingCountry(order.order.shipping.address?.country)?.label,
-                  "\n",
-                  order.order.shipping.phone,
-                  order.order.receipt_email,
-                ]
-                  .filter(Boolean)
-                  .map((line, idx) => (
-                    <Fragment key={idx}>
-                      {line}
-                      <br />
-                    </Fragment>
-                  ))}
-              </p>
-            </div>
-          )}
+				{isDigital(order.lines) && (
+					<div className="mb-8">
+						<h3 className="font-semibold leading-none text-neutral-700">Digital Asset</h3>
+						<ul className="mt-3">
+							{order.lines
+								.filter((line) => line.product.metadata.digitalAsset)
+								.map((line) => (
+									<li key={line.product.id} className="text-sm">
+										<a
+											href={line.product.metadata.digitalAsset}
+											target="_blank"
+											download
+											rel="noreferrer"
+											className="text-blue-500 hover:underline"
+										>
+											{line.product.name}
+										</a>
+									</li>
+								))}
+						</ul>
+					</div>
+				)}
 
-          {order.order.payment_method?.billing_details.address && (
-            <div>
-              <h3 className="font-semibold leading-none text-neutral-700">
-                {t("billingAddress")}
-              </h3>
-              <p className="mt-3 text-sm">
-                {[
-                  order.order.payment_method.billing_details.name,
-                  order.order.payment_method.billing_details.address.line1,
-                  order.order.payment_method.billing_details.address.line2,
-                  order.order.payment_method.billing_details.address.postal_code,
-                  order.order.payment_method.billing_details.address.city,
-                  order.order.payment_method.billing_details.address.state,
-                  findMatchingCountry(
-                    order.order.payment_method?.billing_details?.address?.country,
-                  )?.label,
-                  "\n",
-                  order.order.payment_method.billing_details.phone,
-                  order.order.receipt_email,
-                ]
-                  .filter(Boolean)
-                  .map((line, idx) => (
-                    <Fragment key={idx}>
-                      {line}
-                      <br />
-                    </Fragment>
-                  ))}
-                {order.order.metadata.taxId && `${t("taxId")}: ${order.order.metadata.taxId}`}
-              </p>
-            </div>
-          )}
+				<div className="grid gap-8 sm:grid-cols-2">
+					{!isDigital(order.lines) && order.order.shipping?.address && (
+						<div>
+							<h3 className="font-semibold leading-none text-neutral-700">{t("shippingAddress")}</h3>
+							<p className="mt-3 text-sm">
+								{[
+									order.order.shipping.name,
+									order.order.shipping.address.line1,
+									order.order.shipping.address.line2,
+									order.order.shipping.address.postal_code,
+									order.order.shipping.address.city,
+									order.order.shipping.address.state,
+									findMatchingCountry(order.order.shipping.address?.country)?.label,
+									"\n",
+									order.order.shipping.phone,
+									order.order.receipt_email,
+								]
+									.filter(Boolean)
+									.map((line, idx) => (
+										<Fragment key={idx}>
+											{line}
+											<br />
+										</Fragment>
+									))}
+							</p>
+						</div>
+					)}
 
-          {order.order.payment_method?.type === "card" &&
-            order.order.payment_method.card && (
-              <div className="border-t pt-8 sm:col-span-2">
-                <h3 className="font-semibold leading-none text-neutral-700">
-                  {t("paymentMethod")}
-                </h3>
-                <p className="mt-3 text-sm">
-                  {order.order.payment_method.card.brand &&
-                    order.order.payment_method.card.brand in paymentMethods && (
-                      <Image
-                        src={
-                          paymentMethods[
-                            order.order.payment_method.card.brand as keyof typeof paymentMethods
-                          ]
-                        }
-                        className="mr-1 inline-block w-6 align-text-bottom"
-                        alt=""
-                      />
-                    )}
-                  <span className="sr-only">{t("cardBrand")} </span>
-                  <span className="capitalize">
-                    {order.order.payment_method.card.display_brand}
-                  </span>
-                </p>
-                <p className="mt-1.5 text-sm tabular-nums">
-                  <span className="sr-only">{t("last4CardDigitsLabel")} </span>
-                  <span aria-hidden>••••</span>
-                  {order.order.payment_method.card.last4}
-                </p>
-              </div>
-            )}
+					{order.order.payment_method?.billing_details.address && (
+						<div>
+							<h3 className="font-semibold leading-none text-neutral-700">{t("billingAddress")}</h3>
+							<p className="mt-3 text-sm">
+								{[
+									order.order.payment_method.billing_details.name,
+									order.order.payment_method.billing_details.address.line1,
+									order.order.payment_method.billing_details.address.line2,
+									order.order.payment_method.billing_details.address.postal_code,
+									order.order.payment_method.billing_details.address.city,
+									order.order.payment_method.billing_details.address.state,
+									findMatchingCountry(order.order.payment_method?.billing_details?.address?.country)?.label,
+									"\n",
+									order.order.payment_method.billing_details.phone,
+									order.order.receipt_email,
+								]
+									.filter(Boolean)
+									.map((line, idx) => (
+										<Fragment key={idx}>
+											{line}
+											<br />
+										</Fragment>
+									))}
+								{order.order.metadata.taxId && `${t("taxId")}: ${order.order.metadata.taxId}`}
+							</p>
+						</div>
+					)}
 
-          <div className="col-span-2 grid grid-cols-2 gap-8 border-t pt-8">
-            <h3 className="font-semibold leading-none text-neutral-700">{t("total")}</h3>
-            <p>
-              {formatMoney({
-                amount: order.order.amount_received,
-                currency: order.order.currency,
-                locale,
-              })}
-            </p>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
+					{order.order.payment_method?.type === "card" && order.order.payment_method.card && (
+						<div className="border-t pt-8 sm:col-span-2">
+							<h3 className="font-semibold leading-none text-neutral-700">{t("paymentMethod")}</h3>
+							<p className="mt-3 text-sm">
+								{order.order.payment_method.card.brand &&
+									order.order.payment_method.card.brand in paymentMethods && (
+										<Image
+											src={
+												paymentMethods[order.order.payment_method.card.brand as keyof typeof paymentMethods]
+											}
+											className="mr-1 inline-block w-6 align-text-bottom"
+											alt=""
+											width={24}
+											height={24}
+										/>
+									)}
+								<span className="sr-only">{t("cardBrand")} </span>
+								<span className="capitalize">{order.order.payment_method.card.display_brand}</span>
+							</p>
+							<p className="mt-1.5 text-sm tabular-nums">
+								<span className="sr-only">{t("last4CardDigitsLabel")} </span>
+								<span aria-hidden>••••</span>
+								{order.order.payment_method.card.last4}
+							</p>
+						</div>
+					)}
+
+					<div className="col-span-2 grid grid-cols-2 gap-8 border-t pt-8">
+						<h3 className="font-semibold leading-none text-neutral-700">{t("total")}</h3>
+						<p>
+							{formatMoney({
+								amount: order.order.amount_received,
+								currency: order.order.currency,
+								locale,
+							})}
+						</p>
+					</div>
+				</div>
+			</div>
+		</article>
+	);
 }
 
 const PaymentStatus = async ({ status }: { status: PaymentIntent.Status }) => {
-  const t = await getTranslations("/order.paymentStatus");
-  const statusToVariant = {
-    canceled: "destructive",
-    processing: "secondary",
-    requires_action: "destructive",
-    requires_capture: "destructive",
-    requires_confirmation: "destructive",
-    requires_payment_method: "destructive",
-    succeeded: "default",
-  } satisfies Record<PaymentIntent.Status, ComponentProps<typeof Badge>["variant"]>;
+	const t = await getTranslations("/order.paymentStatus");
+	const statusToVariant = {
+		canceled: "destructive",
+		processing: "secondary",
+		requires_action: "destructive",
+		requires_capture: "destructive",
+		requires_confirmation: "destructive",
+		requires_payment_method: "destructive",
+		succeeded: "default",
+	} satisfies Record<PaymentIntent.Status, ComponentProps<typeof Badge>["variant"]>;
 
-  return (
-    <Badge className="ml-2 capitalize" variant={statusToVariant[status]}>
-      {t(status)}
-    </Badge>
-  );
+	return (
+		<Badge className="ml-2 capitalize" variant={statusToVariant[status]}>
+			{t(status)}
+		</Badge>
+	);
 };
