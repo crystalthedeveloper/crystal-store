@@ -16,7 +16,6 @@ import { ClearCookieClientComponent } from "@/ui/checkout/clear-cookie-client-co
 import { Markdown } from "@/ui/markdown";
 
 export const runtime = "nodejs";
-export const prerender = false; // ⛔ do not prerender this route
 export const dynamic = "force-dynamic"; // ensure server-rendered at request time
 export const revalidate = 0; // no ISR
 
