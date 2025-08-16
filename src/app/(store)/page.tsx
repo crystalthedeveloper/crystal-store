@@ -52,7 +52,7 @@ export default async function Home() {
 					</div>
 
 					<Image
-						alt="crystal The Developere"
+						alt="crystal The Developer logo"
 						loading="eager"
 						priority={true}
 						className="rounded"
