@@ -85,19 +85,18 @@ const vercelUrl = vercelHost ? `https://${vercelHost}` : undefined;
 
 /**
  * Prefer explicit NEXT_PUBLIC_URL; otherwise fall back to Vercel computed host.
- * On local/dev builders where neither exists, fall back to localhost so we don’t throw.
+ * As a last resort (any env), use localhost so it's never undefined.
  */
-const computedPublicUrl =
-	env.NEXT_PUBLIC_URL ??
-	vercelUrl ??
-	(process.env.NODE_ENV !== "production" ? "http://localhost:3000" : undefined);
+const computedPublicUrl = env.NEXT_PUBLIC_URL ?? vercelUrl ?? "http://localhost:3000";
 
-// If you *really* want to require a public URL in production, enforce it here:
-if (process.env.NODE_ENV === "production" && !computedPublicUrl) {
-	// Don’t throw during Webflow Cloud build for safety; log instead.
-	console.warn("WARN: Missing NEXT_PUBLIC_URL/NEXT_PUBLIC_VERCEL_URL in production build.");
+// Optional visibility in prod when falling back
+if (!env.NEXT_PUBLIC_URL && process.env.NODE_ENV === "production") {
+	// eslint-disable-next-line no-console
+	console.warn(
+		'WARN: No NEXT_PUBLIC_URL provided; defaulting to "http://localhost:3000". ' +
+			"Set NEXT_PUBLIC_URL in your environment for correct absolute metadata URLs.",
+	);
 }
 
-// Export as a plain string
-const _publicUrl = /** @type {string | undefined} */ (computedPublicUrl);
-export { _publicUrl as publicUrl };
+// Always export a string so `new URL(publicUrl)` is safe
+export const publicUrl /**: string */ = computedPublicUrl;
