@@ -15,10 +15,6 @@ import { paymentMethods } from "@/ui/checkout/checkout-card";
 import { ClearCookieClientComponent } from "@/ui/checkout/clear-cookie-client-component";
 import { Markdown } from "@/ui/markdown";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export const generateMetadata = async (): Promise<Metadata> => {
 	const t = await getTranslations("/order.metadata");
 	return { title: t("title") };
