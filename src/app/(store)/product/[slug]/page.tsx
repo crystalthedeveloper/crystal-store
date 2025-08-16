@@ -13,7 +13,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { publicUrl } from "@/env.mjs";
+import { env, publicUrl } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getProductWithPrices, type KitPrice, type KitProduct } from "@/lib/products/getProductWithPrices";
 import { getVariantSelections } from "@/lib/products/getVariantSelections";
@@ -31,7 +31,13 @@ import { WebflowLinks } from "@/ui/products/WebflowLinks";
 import { StickyBottom } from "@/ui/sticky-bottom";
 import { YnsLink } from "@/ui/yns-link";
 
-/* ------------------ Metadata (Apparel-aware) ------------------ */
+/* --------------------------------
+   Build-safety: never prerender
+--------------------------------- */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+/* -------------- Metadata (safe when Stripe is missing) -------------- */
 export const generateMetadata = async (props: {
 	params: Promise<{ slug: string }>;
 	searchParams: Promise<{ color?: string; size?: string }>;
@@ -39,26 +45,36 @@ export const generateMetadata = async (props: {
 	const { slug } = await props.params;
 	const { color, size } = await props.searchParams;
 
-	let base: KitProduct;
+	// If Stripe isn't configured (eg. Webflow Cloud build), don't fetch product data.
+	if (!env.STRIPE_SECRET_KEY) {
+		const canonical = new URL(`${publicUrl}/product/${slug}`);
+		if (color) canonical.searchParams.set("color", color);
+		if (size) canonical.searchParams.set("size", size);
+
+		return {
+			title: deslugify(slug),
+			alternates: { canonical },
+		};
+	}
+
+	// Normal path with product-driven metadata
 	try {
-		({ product: base } = await getProductWithPrices(slug));
+		const { product: base } = await getProductWithPrices(slug);
+		const t = await getTranslations("/product.metadata");
+		const canonical = new URL(`${publicUrl}/product/${base.metadata.slug}`);
+		const isApparel = (base.metadata?.category ?? "").toLowerCase() === "apparel";
+		if (isApparel) {
+			if (color) canonical.searchParams.set("color", color);
+			if (size) canonical.searchParams.set("size", size);
+		}
+		return {
+			title: t("title", { productName: formatProductName(base.name, base.metadata.variant) }),
+			description: base.description ?? undefined,
+			alternates: { canonical },
+		};
 	} catch {
 		return notFound();
 	}
-
-	const t = await getTranslations("/product.metadata");
-	const canonical = new URL(`${publicUrl}/product/${base.metadata.slug}`);
-	const isApparel = (base.metadata?.category ?? "").toLowerCase() === "apparel";
-	if (isApparel) {
-		if (color) canonical.searchParams.set("color", color);
-		if (size) canonical.searchParams.set("size", size);
-	}
-
-	return {
-		title: t("title", { productName: formatProductName(base.name, base.metadata.variant) }),
-		description: base.description ?? undefined,
-		alternates: { canonical },
-	};
 };
 
 /* ------------------------------ Page ------------------------------ */
@@ -68,7 +84,44 @@ export default async function SingleProductPage(props: {
 }) {
 	const { slug } = await props.params;
 	const { color, size, image, debug } = await props.searchParams;
+	const t = await getTranslations("/product.page");
+	const locale = await getLocale();
 
+	/* ✅ Build-safe fallback: no Stripe calls */
+	if (!env.STRIPE_SECRET_KEY) {
+		const title = deslugify(slug);
+		return (
+			<article className="pb-12">
+				<Breadcrumb>
+					<BreadcrumbList>
+						<BreadcrumbItem>
+							<BreadcrumbLink asChild className="inline-flex min-h-12 min-w-12 items-center justify-center">
+								<YnsLink href="/products">{t("allProducts", { default: "All Products" })}</YnsLink>
+							</BreadcrumbLink>
+						</BreadcrumbItem>
+						<BreadcrumbSeparator />
+						<BreadcrumbItem>
+							<BreadcrumbPage>{title}</BreadcrumbPage>
+						</BreadcrumbItem>
+					</BreadcrumbList>
+				</Breadcrumb>
+
+				<div className="mt-6 grid gap-6 lg:grid-cols-12">
+					<div className="lg:col-span-7">
+						<div className="aspect-square w-full rounded-lg bg-neutral-100" />
+					</div>
+					<div className="lg:col-span-5">
+						<h1 className="text-3xl font-bold leading-none tracking-tight">{title}</h1>
+						<p className="mt-2 text-neutral-600">
+							Store preview is disabled in this environment (Stripe not configured).
+						</p>
+					</div>
+				</div>
+			</article>
+		);
+	}
+
+	/* ✅ Normal path (Stripe present) */
 	let product: KitProduct;
 	let prices: KitPrice[];
 	try {
@@ -77,14 +130,7 @@ export default async function SingleProductPage(props: {
 		return notFound();
 	}
 
-	// --- Server logs: product + prices snapshot ---
-	console.log("Server/Product page ▶ slug:", slug);
-	console.log("Server/Product page ▶ product.meta:", product.metadata);
-	console.log("Server/Product page ▶ price count:", prices?.length);
-
 	const isApparel = (product.metadata?.category ?? "").toLowerCase() === "apparel";
-	const t = await getTranslations("/product.page");
-	const locale = await getLocale();
 
 	// Variants
 	const { allColors, sizesForColor, selectedColor, selectedSize, selectedPrice } = isApparel
@@ -97,9 +143,6 @@ export default async function SingleProductPage(props: {
 				selectedPrice: (product.default_price as unknown as KitPrice) ?? undefined,
 			};
 
-	console.log("Server/Product page ▶ isApparel:", isApparel);
-	console.log("Server/Product page ▶ selectedPrice.meta:", selectedPrice?.metadata);
-
 	// Images (prefer variant image_url)
 	const baseImages = Array.isArray(product.images) ? product.images : [];
 	const selectedPriceImage = isApparel ? (selectedPrice?.metadata?.image_url ?? "") : "";
@@ -110,15 +153,9 @@ export default async function SingleProductPage(props: {
 	const imageIndex = typeof image === "string" ? Number(image) : 0;
 	const mainImage = images[imageIndex] ?? images[0];
 
-	// Webflow-specific selections (product-only category, price can add links/features/license)
+	// Webflow-specific selections
 	const webflow = await getWebflowSelections(product, selectedPrice);
 	const { isWebflow, links, featurePairs, license } = webflow;
-
-	// --- Server logs: webflow block ---
-	console.log("Server/Product page ▶ isWebflow:", isWebflow);
-	console.log("Server/Product page ▶ links:", links);
-	console.log("Server/Product page ▶ featurePairs.length:", featurePairs?.length ?? 0);
-	console.log("Server/Product page ▶ license?", Boolean(license));
 
 	// Price to show
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
@@ -246,16 +283,10 @@ export default async function SingleProductPage(props: {
 							<>
 								<WebflowLinks links={links} />
 
-								{/* Features dropdown */}
 								{featurePairs.length > 0 && (
-									<TextPairsSection
-										heading="Features"
-										items={featurePairs}
-										defaultOpen // remove this if you want it collapsed by default
-									/>
+									<TextPairsSection heading="Features" items={featurePairs} defaultOpen />
 								)}
 
-								{/* License dropdown */}
 								{license && <TextPairsSection heading="License" raw={license} />}
 							</>
 						)}
