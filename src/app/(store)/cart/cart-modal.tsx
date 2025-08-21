@@ -1,4 +1,4 @@
-import { calculateCartTotalNetWithoutShipping } from "commerce-kit";
+// src/app/(store)/cart/cart-modal.tsx
 import Image from "next/image";
 import { getCartFromCookiesAction } from "@/actions/cart-actions";
 import { Button } from "@/components/ui/button";
@@ -7,19 +7,38 @@ import { formatMoney, formatProductName } from "@/lib/utils";
 import { YnsLink } from "@/ui/yns-link";
 import { CartAsideContainer } from "./cart-aside";
 
-export async function CartModalPage() {
-	// const searchParams = await props.searchParams;
-	const originalCart = await getCartFromCookiesAction();
-	// TODO fix type
-	// const cart = await Commerce.cartAddOptimistic({ add: searchParams.add, cart: originalCart! });
-	const cart = originalCart;
+// Minimal cart typing for local math (no commerce-kit import needed)
+type CartLike = {
+	lines: Array<{
+		quantity: number;
+		product: {
+			id: string;
+			name: string;
+			images: string[];
+			metadata: { variant?: string };
+			default_price: { unit_amount?: number; currency: string };
+		};
+	}>;
+	cart?: { client_secret?: string };
+};
 
-	if (!cart || cart.lines.length === 0) {
+// Local equivalent of "calculateCartTotalNetWithoutShipping"
+function calcTotalNetWithoutShipping(cart: CartLike): number {
+	return cart.lines.reduce((sum, line) => {
+		const unit = line.product.default_price.unit_amount ?? 0;
+		return sum + unit * line.quantity;
+	}, 0);
+}
+
+export async function CartModalPage() {
+	const originalCart = (await getCartFromCookiesAction()) as CartLike | null;
+
+	if (!originalCart || originalCart.lines.length === 0) {
 		return null;
 	}
 
-	const currency = cart.lines[0]!.product.default_price.currency;
-	const total = calculateCartTotalNetWithoutShipping(cart);
+	const currency = originalCart.lines[0]!.product.default_price.currency;
+	const total = calcTotalNetWithoutShipping(originalCart);
 	const t = await getTranslations("/cart.modal");
 	const locale = await getLocale();
 
@@ -35,7 +54,7 @@ export async function CartModalPage() {
 
 				<div className="mt-8">
 					<ul role="list" className="-my-6 divide-y divide-neutral-200">
-						{cart.lines.map((line) => (
+						{originalCart.lines.map((line) => (
 							<li
 								key={line.product.id}
 								className="grid grid-cols-[4rem_1fr_max-content] grid-rows-[auto_auto] gap-x-4 gap-y-2 py-6"
@@ -88,11 +107,11 @@ export async function CartModalPage() {
 					</p>
 				</div>
 				<p className="mt-0.5 text-sm text-neutral-500">{t("shippingAndTaxesInfo")}</p>
-				<Button asChild={true} size={"lg"} className="mt-6 w-full rounded-full text-lg">
+				<Button asChild size="lg" className="mt-6 w-full rounded-full text-lg">
 					<YnsLink href="/cart">{t("goToPaymentButton")}</YnsLink>
 				</Button>
 			</div>
-			{/* {searchParams.add && <CartModalAddSideEffect productId={searchParams.add} />} } */}
+			{/* {searchParams.add && <CartModalAddSideEffect productId={searchParams.add} />} */}
 		</CartAsideContainer>
 	);
 }

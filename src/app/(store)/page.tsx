@@ -8,18 +8,25 @@ import { CategoryBox } from "@/ui/category-box";
 import { ProductList } from "@/ui/products/product-list";
 import { YnsLink } from "@/ui/yns-link";
 
-// ✅ don’t prerender; always render at request time
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // server-only libs
+export const dynamic = "force-dynamic"; // don’t prerender
 export const revalidate = 0;
 
 export const metadata: Metadata = {
 	alternates: { canonical: publicUrl },
 };
 
+// 🔧 Infer the element type returned by commerce-kit’s productBrowse
+type ProductFromBrowse = Awaited<
+	ReturnType<typeof import("commerce-kit")["productBrowse"]>
+> extends (infer T)[]
+	? T
+	: never;
+
 export default async function Home() {
 	const t = await getTranslations("/");
 
-	// 🔒 Safe fallback if Stripe isn’t configured (e.g. Webflow Cloud build)
+	// Safe preview if Stripe isn’t configured
 	if (!env.STRIPE_SECRET_KEY) {
 		return (
 			<main>
@@ -67,7 +74,7 @@ export default async function Home() {
 					</div>
 				</section>
 
-				{/* Categories can still show; they don’t require Stripe */}
+				{/* Categories don’t require Stripe */}
 				<section className="w-full py-8">
 					<div className="grid gap-8 lg:grid-cols-2">
 						{StoreConfig.categories.map(({ slug, image: src }) => (
@@ -79,9 +86,14 @@ export default async function Home() {
 		);
 	}
 
-	// ✅ Only load commerce-kit when Stripe exists
-	const { productBrowse } = await import("commerce-kit");
-	const products = await productBrowse({ first: 6 });
+	// Stripe exists: load commerce-kit dynamically
+	let products: ProductFromBrowse[] = [];
+	try {
+		const { productBrowse } = await import("commerce-kit");
+		products = await productBrowse({ first: 6 });
+	} catch (e) {
+		console.warn("Home: productBrowse failed; rendering without products.", e);
+	}
 
 	return (
 		<main>
@@ -131,7 +143,8 @@ export default async function Home() {
 				</div>
 			</section>
 
-			<ProductList products={products} />
+			{/* Render products if we have them */}
+			{products.length > 0 && <ProductList products={products} />}
 
 			<section className="w-full py-8">
 				<div className="grid gap-8 lg:grid-cols-2">
