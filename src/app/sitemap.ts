@@ -1,5 +1,4 @@
 // src/app/sitemap.ts
-import * as Commerce from "commerce-kit";
 import type { MetadataRoute } from "next";
 import { env, publicUrl } from "@/env.mjs";
 import StoreConfig from "@/store.config";
@@ -23,15 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 	try {
 		if (env.STRIPE_SECRET_KEY) {
-			type BrowseArgs = Parameters<typeof Commerce.productBrowse>[0];
-
-			// Build args and cast once; no @ts-expect-error, no `any`
-			const args = {
+			const { productBrowse } = await import("commerce-kit");
+			const products = (await productBrowse({
 				first: 100,
-				...(env.STRIPE_SECRET_KEY ? { secretKey: env.STRIPE_SECRET_KEY } : {}),
-			} as unknown as BrowseArgs;
-
-			const products = (await Commerce.productBrowse(args)) as unknown as ProductLite[];
+			})) as unknown as ProductLite[];
 
 			productUrls = products.filter(hasSlug).map((product): Item => {
 				const seconds = typeof product.updated === "number" ? product.updated : Math.floor(Date.now() / 1000);

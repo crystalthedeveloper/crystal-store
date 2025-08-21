@@ -1,9 +1,6 @@
 // app/api/stripe-webhook/route.ts
-
-import * as Commerce from "commerce-kit";
-import { cartMetadataSchema } from "commerce-kit/internal";
 import { revalidateTag } from "next/cache";
-import type Stripe from "stripe"; // <-- type-only import ✅
+import type Stripe from "stripe"; // type-only ✅
 import { env } from "@/env.mjs";
 
 export const runtime = "nodejs";
@@ -11,6 +8,15 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PrintfulItem = { sync_variant_id: number; quantity: number };
+
+/** Narrow arbitrary metadata to Record<string, string> */
+function toStringRecord(input: Record<string, unknown>): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(input)) {
+		if (typeof v === "string") out[k] = v;
+	}
+	return out;
+}
 
 export async function POST(req: Request) {
 	const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
@@ -27,6 +33,9 @@ export async function POST(req: Request) {
 	if (!signature) return new Response("No signature", { status: 400 });
 
 	const rawBody = await req.text();
+
+	// ✅ Load commerce-kit only when we know secrets exist
+	const Commerce = await import("commerce-kit");
 
 	const stripe = Commerce.provider({
 		secretKey: stripeSecret,
@@ -59,7 +68,6 @@ export async function POST(req: Request) {
 					(lineItems.data ?? []).map(async (item: Stripe.LineItem) => {
 						const price = item.price ?? undefined;
 						const productExpanded = price?.product as Stripe.Product | string | undefined;
-
 						const productObj =
 							productExpanded && typeof productExpanded === "object"
 								? (productExpanded as Stripe.Product)
@@ -89,12 +97,10 @@ export async function POST(req: Request) {
 				const items: PrintfulItem[] = (candidates.filter(Boolean) as PrintfulItem[]) ?? [];
 
 				if (items.length > 0) {
-					// ✅ Checkout.Session doesn’t expose `shipping_details`
-					// Fetch PaymentIntent to get shipping info
+					// Checkout.Session doesn’t expose shipping; get it from PaymentIntent
 					const piId =
 						typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
 
-					// after
 					let shipping: Stripe.PaymentIntent["shipping"] = null;
 					if (piId) {
 						const pi = (await stripe.paymentIntents.retrieve(piId)) as Stripe.PaymentIntent;
@@ -134,7 +140,7 @@ export async function POST(req: Request) {
 						} else {
 							const text = await pfRes.text();
 							console.error("Printful order creation failed:", text);
-							// If you want Stripe to retry: return new Response("Printful error", { status: 500 });
+							// To have Stripe retry: return new Response("Printful error", { status: 500 });
 						}
 					} else {
 						console.log("✅ Printful order created for session:", session.id);
@@ -147,16 +153,21 @@ export async function POST(req: Request) {
 
 			case "payment_intent.succeeded": {
 				const pi = event.data.object as Stripe.PaymentIntent;
-				const metadata = cartMetadataSchema.parse((pi.metadata ?? {}) as Record<string, unknown>);
 
-				if (metadata.taxCalculationId) {
+				// Sanitize metadata → strings only (fixes typing error)
+				const metaRaw = (pi.metadata ?? {}) as Record<string, unknown>;
+				const meta = toStringRecord(metaRaw);
+
+				const taxCalculationId = meta.taxCalculationId;
+				if (taxCalculationId) {
 					await stripe.tax.transactions.createFromCalculation({
-						calculation: metadata.taxCalculationId as string,
+						calculation: taxCalculationId,
 						reference: pi.id.slice(3),
 					});
 				}
 
-				const products = await Commerce.getProductsFromMetadata(metadata);
+				// Safe to use meta now; it's Record<string, string>
+				const products = await Commerce.getProductsFromMetadata(meta as unknown as Record<string, string>);
 				for (const { product } of products) {
 					if (product && product.metadata?.stock !== Infinity) {
 						const current = Number(product.metadata?.stock ?? 0);
