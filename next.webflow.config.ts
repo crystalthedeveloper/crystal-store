@@ -10,6 +10,9 @@ const cfg: NextConfig = {
 	reactStrictMode: true,
 	basePath: base || undefined,
 	assetPrefix: base || undefined,
+	publicRuntimeConfig: {
+		basePath: base || "",
+	},
 
 	eslint: { ignoreDuringBuilds: true },
 	output: process.env.DOCKER ? "standalone" : undefined,
