@@ -41,7 +41,12 @@ export const Newsletter = () => {
 				name="email"
 				required
 			/>
-			<Button type="submit" className="w-24 rounded-full" variant="default" disabled={loading}>
+			<Button
+				type="submit"
+				className="w-24 min-h-[44px] min-w-[44px] rounded-full"
+				variant="default"
+				disabled={loading}
+			>
 				{loading ? <Loader2Icon className="h-4 w-4 animate-spin" /> : t("subscribeButton")}
 			</Button>
 		</form>

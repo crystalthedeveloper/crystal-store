@@ -20,8 +20,8 @@ export const Nav = async () => {
 					<SearchNav />
 				</div>
 				<CartSummaryNav />
-				<YnsLink href="/login">
-					<UserIcon className="hover:text-neutral-500" />
+				<YnsLink href="/login" aria-label="Login">
+					<UserIcon className="hover:text-neutral-500" aria-hidden="true" />
 				</YnsLink>
 			</div>
 		</header>

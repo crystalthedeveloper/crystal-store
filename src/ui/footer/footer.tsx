@@ -52,7 +52,10 @@ export async function Footer() {
 							<ul role="list" className="grid gap-1">
 								{section.links.map((link) => (
 									<li key={link.label}>
-										<YnsLink className="underline-offset-4 hover:underline" href={link.href}>
+										<YnsLink
+											className="inline-flex min-h-[44px] min-w-[44px] items-center underline-offset-4 hover:underline"
+											href={link.href}
+										>
 											{link.label}
 										</YnsLink>
 									</li>
@@ -69,14 +72,14 @@ export async function Footer() {
 				</div>
 				<div className="flex items-center gap-4">
 					<YnsLink
-						className="inline-flex items-center gap-1 transition-colors hover:text-neutral-700"
+						className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 transition-colors hover:text-neutral-700"
 						href="https://www.instagram.com/crystalthedeveloper"
 					>
 						<TwitterIcon className="h-4 w-4" /> Instagram @crystalthedeveloper
 						<span className="sr-only">Instagram</span>
 					</YnsLink>
 					<YnsLink
-						className="inline-flex items-center gap-1 transition-colors hover:text-neutral-700"
+						className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1 transition-colors hover:text-neutral-700"
 						href="https://www.facebook.com/Crystalthedeveloper"
 					>
 						<TwitterIcon className="h-4 w-4" /> Facebook @crystalthedeveloper

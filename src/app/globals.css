@@ -246,3 +246,17 @@ input[type="search" i]::-webkit-search-cancel-button {
 		opacity: 100%;
 	}
 }
+
+@layer base {
+  body {
+    line-height: 1.5;
+  }
+
+  p,
+  span,
+  li,
+  a,
+  div {
+    line-height: inherit;
+  }
+}
