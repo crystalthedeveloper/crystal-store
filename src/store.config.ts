@@ -1,3 +1,4 @@
+// src/store.config.ts
 import ApparelImage from "@/images/apparel.jpg";
 import MaintenanceImage from "@/images/maintenance.jpg";
 import SupportImage from "@/images/support.jpg";
@@ -10,6 +11,9 @@ export const config = {
 		{ name: "Apparel", slug: "apparel", image: ApparelImage },
 		{ name: "Support", slug: "support", image: SupportImage },
 	],
+
+	// 🚫 disable reviews (prevents @neondatabase/serverless import)
+	reviews: false,
 
 	social: {
 		x: "https://www.instagram.com/crystalthedeveloper",

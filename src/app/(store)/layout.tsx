@@ -1,9 +1,9 @@
 // src/app/(store)/layout.tsx
 import "@/app/globals.css";
+import type Stripe from "stripe"; // type-only (no runtime bundle)
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartModalProvider } from "@/context/cart-modal";
 import { env } from "@/env.mjs";
-// import { CommerceGPT } from "@/ui/commerce-gpt";
 import { Footer } from "@/ui/footer/footer";
 import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Nav } from "@/ui/nav/nav";
@@ -13,36 +13,61 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Infer the return type of accountGet without importing commerce-kit at build time
-type AccountGetResult = Awaited<ReturnType<typeof import("commerce-kit")["accountGet"]>>;
-// Infer the return type of fileGet (for logo fallback)
-type FileGetResult = Awaited<ReturnType<typeof import("commerce-kit")["fileGet"]>>;
+/** Minimal local shapes (keep runtime clean) */
+type SignedLink = { url?: string | null; expired?: boolean } | null | undefined;
+type LogoRef = {
+	id?: string | null;
+	links?: { data?: SignedLink[] | null } | null;
+} | null;
+
+type AccountGetShape = {
+	account?: Stripe.Account | null;
+	logo?: LogoRef;
+} | null;
+
+/** fileGet may return a plain object {url} or a wrapper {data: {url}} */
+type FileGetPlain = { url?: string | null } | null;
+type FileGetWrapped = { data?: { url?: string | null } | null } | null;
+type FileGetShape = FileGetPlain | FileGetWrapped;
+
+function extractFileUrl(file: unknown): string | undefined {
+	if (!file || typeof file !== "object") return undefined;
+	// plain { url }
+	if ("url" in file) {
+		const u = (file as { url?: string | null }).url;
+		return u ?? undefined;
+	}
+	// wrapped { data: { url } }
+	if ("data" in file) {
+		const data = (file as { data?: { url?: string | null } | null }).data ?? null;
+		return data?.url ?? undefined;
+	}
+	return undefined;
+}
 
 export default async function StoreLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-	let accountResult: AccountGetResult | null = null;
+	let accountResult: AccountGetShape = null;
 	let logoUrl: string | undefined;
 
+	// Only touch commerce when Stripe is configured (prevents Neon import at build time)
 	if (env.STRIPE_SECRET_KEY) {
 		try {
 			const { accountGet, fileGet } = await import("commerce-kit");
 
 			accountResult = await accountGet();
 
-			// Prefer a non-expired signed link if provided
-			const liveLink = accountResult?.logo?.links?.data?.find((l) => !l?.expired);
+			// Prefer a non-expired signed URL if present
+			const liveLink = accountResult?.logo?.links?.data?.find((l) => l && !l.expired);
 			if (liveLink?.url) {
-				logoUrl = liveLink.url as string;
+				logoUrl = liveLink.url ?? undefined;
 			} else if (accountResult?.logo?.id) {
-				// Fallback: fetch the file to get a stable URL
-				const file: FileGetResult | null = await fileGet(accountResult.logo.id);
-				logoUrl = (file as unknown as { url?: string })?.url;
+				const file = (await fileGet(accountResult.logo.id)) as unknown as FileGetShape;
+				logoUrl = extractFileUrl(file);
 			}
 		} catch (e) {
-			// Keep the layout rendering even if commerce calls fail
 			console.warn("StoreLayout: failed to load account/logo via commerce-kit.", e);
 		}
 	} else {
-		// No Stripe in this environment — skip commerce calls entirely
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
 
@@ -59,11 +84,11 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				</TooltipProvider>
 			</CartModalProvider>
 
-			{/* JSON-LD still renders; missing fields are simply omitted */}
+			{/* JSON-LD stays resilient; missing fields are omitted */}
 			<JsonLd
 				jsonLd={accountToWebsiteJsonLd({
-					account: accountResult?.account,
-					logoUrl,
+					account: accountResult?.account ?? null, // Stripe.Account | null
+					logoUrl: logoUrl ?? null, // string | null
 				})}
 			/>
 		</>

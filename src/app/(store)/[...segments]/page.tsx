@@ -1,6 +1,7 @@
+// src/app/(store)/[...segments]/page.tsx
 import Link, { type LinkProps } from "next/link";
 import { notFound } from "next/navigation";
-import { MDXRemote } from "next-mdx-remote/rsc";
+import { Markdown } from "@/ui/markdown"; // ← your markdown renderer
 
 const pages: Record<string, { content: string }> = {
 	"/about": {
@@ -23,31 +24,23 @@ This is the About page.
 
 ### Heading 3
 
-#### Heading 4`,
+#### Heading 4
+`,
 	},
 };
 
 export default async function Page(props: { params: Promise<{ segments?: string[] }> }) {
-	const params = await props.params;
-	if (!params.segments) {
-		return notFound();
-	}
+	const { segments } = await props.params;
+	if (!segments) return notFound();
 
-	const path = `/${params.segments.join("/")}`;
+	const path = `/${segments.join("/")}`;
 	const page = pages[path];
-
-	if (!page) {
-		return notFound();
-	}
+	if (!page) return notFound();
 
 	return (
 		<div className="prose pb-8 pt-4 lg:prose-lg xl:prose-xl">
-			<MDXRemote
-				source={page.content}
-				components={{
-					a: (props) => <Link {...(props as LinkProps)} />,
-				}}
-			/>
+			{/* Our Markdown component just takes a source string */}
+			<Markdown source={page.content} />
 		</div>
 	);
 }
