@@ -1,5 +1,6 @@
 // src/app/(store)/page.tsx
 import type { Metadata } from "next";
+import getConfig from "next/config";
 import Image from "next/image";
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
@@ -22,6 +23,9 @@ type ProductFromBrowse = Awaited<
 > extends (infer T)[]
 	? T
 	: never;
+
+// pull runtime config
+const { publicRuntimeConfig } = getConfig();
 
 export default async function Home() {
 	const t = await getTranslations("/");
@@ -67,7 +71,7 @@ export default async function Home() {
 							className="rounded"
 							height={450}
 							width={450}
-							src="/crystalthedeveloper-logo.png"
+							src={`${publicRuntimeConfig.basePath || ""}/crystalthedeveloper-logo.png`}
 							style={{ objectFit: "cover" }}
 							sizes="(max-width: 640px) 70vw, 450px"
 						/>
@@ -136,7 +140,7 @@ export default async function Home() {
 						className="rounded"
 						height={450}
 						width={450}
-						src="/crystalthedeveloper-logo.png"
+						src={`${publicRuntimeConfig.basePath || ""}/crystalthedeveloper-logo.png`}
 						style={{ objectFit: "cover" }}
 						sizes="(max-width: 640px) 70vw, 450px"
 					/>

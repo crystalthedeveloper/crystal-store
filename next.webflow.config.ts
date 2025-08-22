@@ -2,14 +2,14 @@
 import type { NextConfig } from "next";
 
 const base =
-	(process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "") || undefined;
+	(process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "") || "";
 
 const isWebflow = process.env.WEBFLOW_CLOUD === "true";
 
 const cfg: NextConfig = {
 	reactStrictMode: true,
-	basePath: base,
-	assetPrefix: base,
+	basePath: base || undefined,
+	assetPrefix: base || undefined,
 
 	eslint: { ignoreDuringBuilds: true },
 	output: process.env.DOCKER ? "standalone" : undefined,
@@ -37,7 +37,6 @@ const cfg: NextConfig = {
 		return config;
 	},
 
-	// Only set remotePatterns if NOT on Webflow
 	...(isWebflow
 		? {}
 		: {
@@ -46,8 +45,9 @@ const cfg: NextConfig = {
 						{ protocol: "https", hostname: "files.stripe.com" },
 						{ protocol: "https", hostname: "img.youtube.com" },
 						{ protocol: "https", hostname: "vumbnail.com" },
-						{ protocol: "https", hostname: "files.cdn.printful.com" }, // ✅ Printful
-						{ protocol: "https", hostname: "img.printful.com" }, // ✅ Printful alt
+						{ protocol: "https", hostname: "files.cdn.printful.com" },
+						{ protocol: "https", hostname: "img.printful.com" },
+						{ protocol: "https", hostname: "www.crystalthedeveloper.ca" }, // ✅ allow your logo
 					],
 				},
 			}),
@@ -62,7 +62,7 @@ const cfg: NextConfig = {
 	},
 };
 
-// export both ESM + CJS so Webflow doesn’t break
+// Export both ESM + CJS so Webflow doesn’t break
 const config = { ...cfg };
 export default config;
 try {
