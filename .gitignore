@@ -13,7 +13,6 @@ src/gql/
 node_modules/
 .pnp
 .pnp.js
-.node_modules 2.del/
 
 # Testing
 coverage/

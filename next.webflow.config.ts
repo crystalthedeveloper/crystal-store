@@ -46,6 +46,8 @@ const cfg: NextConfig = {
 						{ protocol: "https", hostname: "files.stripe.com" },
 						{ protocol: "https", hostname: "img.youtube.com" },
 						{ protocol: "https", hostname: "vumbnail.com" },
+						{ protocol: "https", hostname: "files.cdn.printful.com" }, // ✅ Printful
+						{ protocol: "https", hostname: "img.printful.com" }, // ✅ Printful alt
 					],
 				},
 			}),
