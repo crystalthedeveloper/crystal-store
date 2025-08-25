@@ -1,3 +1,4 @@
+//src/ui/checkout/cart-empty.tsx
 import { getTranslations } from "@/i18n/server";
 import { YnsLink } from "@/ui/yns-link";
 

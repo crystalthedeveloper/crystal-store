@@ -39,9 +39,7 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 						<CartSummaryTable cart={structuredClone(cart)} locale={locale} />
 					</div>
 				</div>
-				<div className="my-8 max-w-[65ch] xl:col-span-5">
-					{/* Intentionally do not render children because they expect Stripe Elements context */}
-				</div>
+				<div className="my-8 max-w-[65ch] xl:col-span-5" />
 			</div>
 		);
 	}
@@ -52,7 +50,6 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 		const { contextGet } = await import("commerce-kit");
 		context = await contextGet();
 	} catch (e) {
-		// If we can’t load context, fall back to a non-interactive summary
 		console.warn("CartLayout: commerce-kit contextGet failed; rendering without payment form.", e);
 		return (
 			<div className="min-h-[calc(100dvh-7rem)] xl:grid xl:grid-cols-12 xl:gap-x-8">
@@ -70,9 +67,11 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 		);
 	}
 
-	const { stripeAccount, publishableKey } = context ?? {};
+	// Fallback to env if context has no publishableKey
+	const publishableKey = context?.publishableKey || env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+	const stripeAccount = context?.stripeAccount;
+
 	if (!publishableKey) {
-		// Defensive guard: if context returned no publishable key, don’t render Elements
 		return (
 			<div className="min-h-[calc(100dvh-7rem)] xl:grid xl:grid-cols-12 xl:gap-x-8">
 				<div className="my-8 xl:col-span-7">
