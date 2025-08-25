@@ -1,16 +1,20 @@
+// src/app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
 import { addToCartAction } from "@/actions/cart-actions";
 import { searchProducts } from "@/lib/search/search";
 
+// ✅ Force Node.js runtime
+export const runtime = "nodejs";
+
+// Optional: allow up to 30s execution
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
 	try {
 		const json = await req.json();
-
-		// biome-ignore lint/suspicious/noExplicitAny: Request body type is not strictly defined
+		// biome-ignore lint/suspicious/noExplicitAny: safe cast for chat messages
 		const messages = (json as any).messages;
 
 		const result = streamText({
@@ -34,14 +38,18 @@ export async function POST(req: Request) {
 						id: z.string(),
 					}),
 					execute: async ({ id }) => {
-						const formData = new FormData();
-						formData.append("productId", id);
-						const cart = await addToCartAction(formData);
-
-						if (cart) {
-							return `Product added to cart successfully. Cart ID: ${cart.id}`;
+						try {
+							const formData = new FormData();
+							formData.append("productId", id);
+							const cart = await addToCartAction(formData);
+							if (cart) {
+								return `✅ Product added to cart. Cart ID: ${cart.id}`;
+							}
+							return "❌ Failed to add product to cart";
+						} catch (err) {
+							console.error("Cart add error:", err);
+							return "❌ Error adding product to cart";
 						}
-						return "Failed to add product to cart";
 					},
 				}),
 			},
@@ -49,7 +57,7 @@ export async function POST(req: Request) {
 
 		return result.toUIMessageStreamResponse();
 	} catch (error) {
-		console.error("Chat API error:", error);
+		console.error("Chat API error:", error instanceof Error ? error.message : error);
 		return new Response("Internal Server Error", { status: 500 });
 	}
 }
