@@ -2,7 +2,6 @@
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
 import { Suspense } from "react";
-import { env } from "@/env.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // stop prerender
@@ -14,8 +13,10 @@ export const metadata: Metadata = { title: "Your Orders" };
 export default async function OrderPage() {
 	noStore();
 
-	// Guard when Stripe isn't set up
-	if (!env.STRIPE_SECRET_KEY) {
+	// ✅ check env at runtime, not via env.mjs (prevents 404)
+	const stripeKey = process.env.STRIPE_SECRET_KEY;
+
+	if (!stripeKey) {
 		return (
 			<div className="py-10">
 				<h1 className="text-2xl font-bold mb-5">Your Orders</h1>
@@ -26,7 +27,7 @@ export default async function OrderPage() {
 		);
 	}
 
-	// Import AFTER the guard
+	// ✅ dynamically import OrderList after env check
 	const { OrderList } = await import("@/ui/order-list");
 
 	return (

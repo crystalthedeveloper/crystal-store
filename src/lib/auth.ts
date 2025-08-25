@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-// Supabase client (service-side)
+// ✅ Supabase client (service-side)
 const supabase = createClient(
 	process.env.NEXT_PUBLIC_SUPABASE_URL!,
 	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -44,8 +44,8 @@ export async function login(_state: unknown, formData: FormData): Promise<{ erro
 		sameSite: "strict",
 	});
 
+	// ✅ Redirect with basePath
 	redirect("/orders");
-	return;
 }
 
 // --- LOGOUT ---
@@ -74,7 +74,6 @@ export async function updateSession(request: NextRequest) {
 	const token = (await cookies()).get("sb:token")?.value;
 	if (!token) return NextResponse.next();
 
-	// Supabase auto-refreshes tokens under the hood,
-	// so here you’d normally call supabase.auth.refreshSession if needed.
+	// Supabase auto-refreshes tokens under the hood
 	return NextResponse.next();
 }

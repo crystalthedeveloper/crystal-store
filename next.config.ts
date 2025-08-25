@@ -40,20 +40,32 @@ const cfg: NextConfig = {
 		return config;
 	},
 
-	...(isWebflow
-		? {}
+	// Always include images config unless explicitly disabled
+	images: isWebflow
+		? undefined
 		: {
-				images: {
-					remotePatterns: [
-						{ protocol: "https", hostname: "files.stripe.com" },
-						{ protocol: "https", hostname: "img.youtube.com" },
-						{ protocol: "https", hostname: "vumbnail.com" },
-						{ protocol: "https", hostname: "files.cdn.printful.com" },
-						{ protocol: "https", hostname: "img.printful.com" },
-						{ protocol: "https", hostname: "www.crystalthedeveloper.ca" }, // ✅ allow your logo
-					],
-				},
-			}),
+				remotePatterns: [
+					// Stripe
+					{ protocol: "https", hostname: "files.stripe.com" },
+					// Printful
+					{ protocol: "https", hostname: "files.cdn.printful.com" },
+					{ protocol: "https", hostname: "files.printful.com" },
+					{ protocol: "https", hostname: "images.printful.com" },
+					{ protocol: "https", hostname: "img.printful.com" },
+					// Video thumbs
+					{ protocol: "https", hostname: "img.youtube.com" },
+					{ protocol: "https", hostname: "vumbnail.com" },
+					// Webflow-related
+					{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
+					{ protocol: "https", hostname: "assets.website-files.com" },
+					{ protocol: "https", hostname: "**.webflow.io" },
+					// Vercel storage (keep if you still use it)
+					{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
+					// Your domain
+					{ protocol: "https", hostname: "www.crystalthedeveloper.ca" },
+				],
+				formats: ["image/avif", "image/webp"],
+			},
 
 	async rewrites() {
 		return [
