@@ -15,19 +15,71 @@ export const revalidate = 0;
 // Type safely infer the result of commerce-kit/contextGet without a static import
 type ContextGetResult = Awaited<ReturnType<typeof import("commerce-kit")["contextGet"]>>;
 
+// ✅ Stripe supported locales
+const STRIPE_SUPPORTED_LOCALES = [
+	"auto",
+	"bg",
+	"cs",
+	"da",
+	"de",
+	"el",
+	"en",
+	"en-GB",
+	"es",
+	"es-419",
+	"et",
+	"fi",
+	"fil",
+	"fr",
+	"fr-CA",
+	"hr",
+	"hu",
+	"id",
+	"it",
+	"ja",
+	"ko",
+	"lt",
+	"lv",
+	"ms",
+	"mt",
+	"nb",
+	"nl",
+	"pl",
+	"pt",
+	"pt-BR",
+	"ro",
+	"ru",
+	"sk",
+	"sl",
+	"sv",
+	"th",
+	"tr",
+	"vi",
+	"zh",
+	"zh-HK",
+	"zh-TW",
+] as const;
+
+type StripeLocale = (typeof STRIPE_SUPPORTED_LOCALES)[number];
+
+function normalizeLocale(locale: string | undefined): StripeLocale {
+	if (!locale) return "en";
+	return STRIPE_SUPPORTED_LOCALES.includes(locale as StripeLocale) ? (locale as StripeLocale) : "en";
+}
+
 export default async function CartLayout({ children }: { children: ReactNode }) {
 	const cart = await getCartFromCookiesAction();
 
-	// If there’s no cart or client secret, show the empty state as before
 	if (!cart?.cart.client_secret || cart.lines.length === 0) {
 		return <CartEmpty />;
 	}
 
 	const t = await getTranslations("/cart.page");
-	// ✅ Always fallback to "en" so it's never undefined
-	const locale = (await getLocale()) ?? "en";
 
-	// If Stripe is NOT configured in this environment, show the cart summary but omit payment UI
+	// ✅ Normalize locale into a Stripe-supported one
+	const locale = normalizeLocale(await getLocale());
+
+	// If Stripe is NOT configured
 	if (!env.STRIPE_SECRET_KEY) {
 		return (
 			<div className="min-h-[calc(100dvh-7rem)] xl:grid xl:grid-cols-12 xl:gap-x-8">
@@ -45,7 +97,7 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 		);
 	}
 
-	// Stripe exists: load commerce-kit at runtime (no static import)
+	// Stripe exists
 	let context: ContextGetResult | null = null;
 	try {
 		const { contextGet } = await import("commerce-kit");
@@ -68,7 +120,6 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 		);
 	}
 
-	// Fallback to env if context has no publishableKey
 	const publishableKey = context?.publishableKey || env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 	const stripeAccount = context?.stripeAccount;
 
@@ -89,7 +140,7 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 		);
 	}
 
-	// Normal path: wrap with Stripe Elements
+	// Normal path
 	return (
 		<StripeElementsContainer
 			clientSecret={cart.cart.client_secret}
