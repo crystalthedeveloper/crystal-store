@@ -5,10 +5,10 @@ import { z } from "zod";
 import { addToCartAction } from "@/actions/cart-actions";
 import { searchProducts } from "@/lib/search/search";
 
-// ✅ Force Node.js runtime
+// ✅ Force Node.js runtime (supabase, stripe, etc. require Node APIs)
 export const runtime = "nodejs";
 
-// Optional: allow up to 30s execution
+// ✅ Allow up to 30s execution (AI streaming can take longer)
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
@@ -16,6 +16,10 @@ export async function POST(req: Request) {
 		const json = await req.json();
 		// biome-ignore lint/suspicious/noExplicitAny: safe cast for chat messages
 		const messages = (json as any).messages;
+
+		if (!messages) {
+			return new Response("Missing messages", { status: 400 });
+		}
 
 		const result = streamText({
 			system: "Every search query should be changed to singular form",
@@ -28,8 +32,13 @@ export async function POST(req: Request) {
 						query: z.string(),
 					}),
 					execute: async ({ query }) => {
-						const products = await searchProducts(query);
-						return products.slice(0, 4);
+						try {
+							const products = await searchProducts(query);
+							return products.slice(0, 4);
+						} catch (err) {
+							console.error("Product search error:", err);
+							return [];
+						}
 					},
 				}),
 				cartAdd: tool({
@@ -41,6 +50,7 @@ export async function POST(req: Request) {
 						try {
 							const formData = new FormData();
 							formData.append("productId", id);
+
 							const cart = await addToCartAction(formData);
 							if (cart) {
 								return `✅ Product added to cart. Cart ID: ${cart.id}`;

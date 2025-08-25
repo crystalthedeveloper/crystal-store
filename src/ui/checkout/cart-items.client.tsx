@@ -1,4 +1,6 @@
-import { useElements } from "@stripe/react-stripe-js";
+// src/ui/checkout/cart-items.client.tsx
+"use client";
+
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,6 +22,7 @@ export const CartItemQuantity = ({
 	onChange: (args: { productId: string; action: "INCREASE" | "DECREASE" }) => void;
 }) => {
 	const { pending } = useFormStatus();
+	const router = useRouter();
 
 	const stateRef = useRef<{
 		timer: ReturnType<typeof setTimeout> | null;
@@ -28,9 +31,6 @@ export const CartItemQuantity = ({
 
 	const isPending = pending && stateRef.current !== null;
 
-	const elements = useElements();
-	const router = useRouter();
-
 	const formAction = async (action: "INCREASE" | "DECREASE") => {
 		onChange({ productId, action });
 
@@ -38,7 +38,7 @@ export const CartItemQuantity = ({
 			try {
 				const modifier = action === "INCREASE" ? 1 : -1;
 				await setQuantity({ cartId, productId, quantity: quantity + modifier });
-				await elements?.fetchUpdates();
+				// ✅ No more elements?.fetchUpdates()
 				router.refresh();
 				stateRef.current?.promise.resolve();
 			} catch (error) {

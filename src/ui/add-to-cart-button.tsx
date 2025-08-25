@@ -1,7 +1,8 @@
+// src/ui/add-to-cart-button.tsx
 "use client";
+
 import { Loader2Icon } from "lucide-react";
 import { useTransition } from "react";
-import { addToCartAction } from "@/actions/cart-actions";
 import { Button } from "@/components/ui/button";
 import { useCartModal } from "@/context/cart-modal";
 import { useTranslations } from "@/i18n/client";
@@ -25,20 +26,36 @@ export const AddToCartButton = ({
 		<Button
 			id="button-add-to-cart"
 			size="lg"
-			type="submit"
+			type="button"
 			className={cn("rounded-full text-lg relative", className)}
 			onClick={async (e) => {
-				if (isDisabled) {
-					e.preventDefault();
-					return;
-				}
+				e.preventDefault();
+				if (isDisabled) return;
 
 				setOpen(true);
 
 				startTransition(async () => {
-					const formData = new FormData();
-					formData.append("productId", productId);
-					await addToCartAction(formData);
+					try {
+						// ✅ POST to API instead of product page
+						const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/chat`, {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								messages: [
+									{
+										role: "user",
+										content: `add product ${productId} to cart`,
+									},
+								],
+							}),
+						});
+
+						if (!res.ok) {
+							console.error("Add to cart failed:", await res.text());
+						}
+					} catch (err) {
+						console.error("Cart request error:", err);
+					}
 				});
 			}}
 			aria-disabled={isDisabled}
