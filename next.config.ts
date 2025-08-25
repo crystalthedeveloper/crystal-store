@@ -1,55 +1,71 @@
-// next.vercel.config.ts  (Vercel: WITH `images`)
+// next.config.ts
 import type { NextConfig } from "next";
 
-const base = (process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+const base =
+	(process.env.COSMIC_MOUNT_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "") || "";
+
+const isWebflow = process.env.WEBFLOW_CLOUD === "true";
 
 const cfg: NextConfig = {
 	reactStrictMode: true,
 	basePath: base || undefined,
 	assetPrefix: base || undefined,
+	publicRuntimeConfig: {
+		basePath: base || "",
+	},
 
 	eslint: { ignoreDuringBuilds: true },
 	output: process.env.DOCKER ? "standalone" : undefined,
 	logging: { fetches: { fullUrl: true } },
 
-	images: {
-		remotePatterns: [
-			{ protocol: "https", hostname: "files.stripe.com" },
-			{ protocol: "https", hostname: "d1wqzb5bdbcre6.cloudfront.net" },
-			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
-			{ protocol: "https", hostname: "files.cdn.printful.com" },
-			{ protocol: "https", hostname: "files.printful.com" },
-			{ protocol: "https", hostname: "images.printful.com" },
-			{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
-			{ protocol: "https", hostname: "assets.website-files.com" },
-			{ protocol: "https", hostname: "**.webflow.io" },
-		],
-		formats: ["image/avif", "image/webp"],
+	transpilePackages: ["next-mdx-remote", "commerce-kit"],
+	experimental: {
+		esmExternals: true,
+		scrollRestoration: true,
 	},
 
-	transpilePackages: ["next-mdx-remote", "commerce-kit"],
-	experimental: { esmExternals: true, scrollRestoration: true },
-
-	webpack: (cfg) => {
-		cfg.resolve = {
-			...(cfg.resolve || {}),
+	webpack: (config) => {
+		config.resolve = {
+			...(config.resolve || {}),
 			extensionAlias: {
 				".js": [".js", ".ts"],
 				".jsx": [".jsx", ".tsx"],
 			},
+			// 👇 stub out Neon so Webflow build doesn’t fail
 			fallback: {
-				...(cfg.resolve?.fallback || {}),
-				"@neondatabase/serverless": false, // 👈 stub out Neon
+				...(config.resolve?.fallback || {}),
+				"@neondatabase/serverless": false,
 			},
 		};
-		return cfg;
+		return config;
 	},
 
+	...(isWebflow
+		? {}
+		: {
+				images: {
+					remotePatterns: [
+						{ protocol: "https", hostname: "files.stripe.com" },
+						{ protocol: "https", hostname: "img.youtube.com" },
+						{ protocol: "https", hostname: "vumbnail.com" },
+						{ protocol: "https", hostname: "files.cdn.printful.com" },
+						{ protocol: "https", hostname: "img.printful.com" },
+						{ protocol: "https", hostname: "www.crystalthedeveloper.ca" }, // ✅ allow your logo
+					],
+				},
+			}),
+
 	async rewrites() {
-		return [{ source: "/stats/:match*", destination: "https://eu.umami.is/:match*" }];
+		return [
+			{
+				source: "/stats/:match*",
+				destination: "https://eu.umami.is/:match*",
+			},
+		];
 	},
 };
 
+// Export both ESM + CJS so Webflow doesn’t break
 const config = { ...cfg };
 export default config;
 try {

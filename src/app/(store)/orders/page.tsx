@@ -1,20 +1,20 @@
-// app/(store)/orders/page.tsx
-
+//src/app/(store)/orders/page.tsx
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
+import { Suspense } from "react";
 import { env } from "@/env.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // stop prerender
 export const revalidate = 0;
-export const fetchCache = "force-no-store"; // also disables caching
+export const fetchCache = "force-no-store";
 
 export const metadata: Metadata = { title: "Your Orders" };
 
 export default async function OrderPage() {
 	noStore();
 
-	// Avoid touching Stripe/commerce in Webflow build envs
+	// Guard when Stripe isn't set up
 	if (!env.STRIPE_SECRET_KEY) {
 		return (
 			<div className="py-10">
@@ -26,13 +26,16 @@ export default async function OrderPage() {
 		);
 	}
 
-	// Import AFTER the guard so nothing Stripe-related runs at build time
+	// Import AFTER the guard
 	const { OrderList } = await import("@/ui/order-list");
 
 	return (
 		<div className="py-10">
 			<h1 className="text-2xl font-bold mb-5">Your Orders</h1>
-			<OrderList />
+
+			<Suspense fallback={<p className="text-sm text-muted-foreground">Loading your orders…</p>}>
+				<OrderList />
+			</Suspense>
 		</div>
 	);
 }

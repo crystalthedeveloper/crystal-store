@@ -12,7 +12,7 @@ const links: LinkItem[] = [
 	{
 		label: "Crystal The Developer Inc.",
 		href: "https://www.crystalthedeveloper.ca",
-		newTab: true,
+		newTab: false,
 	},
 ];
 

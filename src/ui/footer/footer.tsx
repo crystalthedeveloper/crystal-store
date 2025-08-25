@@ -2,7 +2,6 @@
 import type { SVGAttributes } from "react";
 import { getTranslations } from "@/i18n/server";
 import StoreConfig from "@/store.config";
-import { Newsletter } from "@/ui/footer/newsletter.client";
 import { YnsLink } from "@/ui/yns-link";
 
 const sections = [
@@ -16,18 +15,23 @@ const sections = [
 	{
 		header: "Support",
 		links: [
-			{
-				label: "Jobs",
-				href: "https://www.crystalthedeveloper.ca/jobs",
-			},
-			{
-				label: "Website Pricing",
-				href: "https://www.crystalthedeveloper.ca/pricing",
-			},
-			{
-				label: "Contact Us",
-				href: "mailto:contact@crystalthedeveloper.ca",
-			},
+			{ label: "Jobs", href: "https://www.crystalthedeveloper.ca/jobs" },
+			{ label: "Website Pricing", href: "https://www.crystalthedeveloper.ca/pricing" },
+			{ label: "Contact Us", href: "mailto:contact@crystalthedeveloper.ca" },
+		],
+	},
+	{
+		header: "Game Projects",
+		links: [
+			{ label: "Dev Hunt", href: "https://www.crystalthedeveloper.ca/dev-hunt" },
+			{ label: "Clown Hunt", href: "https://www.crystalthedeveloper.ca/clown-hunt" },
+		],
+	},
+	{
+		header: "Watch & Learn",
+		links: [
+			{ label: "Blog", href: "https://www.crystalthedeveloper.ca/blog" },
+			{ label: "1 Hour Forward", href: "https://www.crystalthedeveloper.ca/1hourforward" },
 		],
 	},
 ];
@@ -37,36 +41,30 @@ export async function Footer() {
 
 	return (
 		<footer className="w-full bg-neutral-50 p-6 text-neutral-800 md:py-12">
-			<div className="container flex max-w-7xl flex-row flex-wrap justify-center gap-16 text-sm sm:justify-between">
-				<div className="">
-					<div className="flex w-full max-w-sm flex-col gap-2">
-						<h3 className="font-semibold">{t("newsletterTitle")}</h3>
-						<Newsletter />
-					</div>
-				</div>
-
-				<nav className="grid grid-cols-2 gap-16">
-					{sections.map((section) => (
-						<section key={section.header}>
-							<h3 className="mb-2 font-semibold">{section.header}</h3>
-							<ul role="list" className="grid gap-1">
-								{section.links.map((link) => (
-									<li key={link.label}>
-										<YnsLink
-											className="inline-flex min-h-[44px] min-w-[44px] items-center underline-offset-4 hover:underline"
-											href={link.href}
-										>
-											{link.label}
-										</YnsLink>
-									</li>
-								))}
-							</ul>
-						</section>
-					))}
-				</nav>
+			{/* Main footer links */}
+			<div className="container max-w-7xl grid grid-cols-1 gap-12 text-sm sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 md:gap-16">
+				{sections.map((section) => (
+					<section key={section.header} className="text-center md:text-left">
+						<h3 className="mb-2 font-semibold">{section.header}</h3>
+						<ul role="list" className="grid gap-1">
+							{section.links.map((link) => (
+								<li key={link.label}>
+									<YnsLink
+										className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center underline-offset-4 hover:underline md:justify-start"
+										href={link.href}
+									>
+										{link.label}
+									</YnsLink>
+								</li>
+							))}
+						</ul>
+					</section>
+				))}
 			</div>
+
+			{/* Bottom bar */}
 			<div className="container mt-8 flex max-w-7xl flex-col items-center justify-between gap-4 text-sm text-neutral-500 md:flex-row">
-				<div>
+				<div className="text-center md:text-left">
 					<p>2025 © Crystal The Developer Inc.</p>
 					<p>All rights reserved</p>
 				</div>

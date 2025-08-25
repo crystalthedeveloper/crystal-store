@@ -52,6 +52,7 @@
 		"@splinetool/runtime": "1.10.39",
 		"@stripe/react-stripe-js": "3.9.0",
 		"@stripe/stripe-js": "7.8.0",
+		"@supabase/supabase-js": "2.56.0",
 		"@t3-oss/env-nextjs": "0.13.8",
 		"@vercel/analytics": "1.5.0",
 		"@vercel/blob": "1.1.1",

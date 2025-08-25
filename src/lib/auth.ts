@@ -1,61 +1,44 @@
+// src/lib/auth.ts
 "use server";
-import { type JWTPayload, jwtVerify, SignJWT } from "jose";
+
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-if (!process.env.SECRET) {
-	throw new Error("SECRET must be defined");
-}
+// Supabase client (service-side)
+const supabase = createClient(
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
-const key = new TextEncoder().encode(process.env.SECRET);
-const SessionDuration = 24 * 60 * 60 * 1000;
+const SessionDuration = 24 * 60 * 60 * 1000; // 24h
 
-interface User {
-	email: string;
-}
-
-interface SessionData extends JWTPayload {
-	user: User;
-	expires: number;
-}
-
-export async function encrypt(payload: SessionData): Promise<string> {
-	return await new SignJWT(payload)
-		.setProtectedHeader({ alg: "HS256" })
-		.setIssuedAt()
-		.setExpirationTime(payload.expires)
-		.sign(key);
-}
-
-export async function decrypt(input: string): Promise<SessionData | null | undefined> {
-	try {
-		const r = await jwtVerify(input, key, {
-			algorithms: ["HS256"],
-		});
-		return r.payload as SessionData;
-	} catch (e) {
-		if (e instanceof Error) {
-			console.log(e.message);
-		}
-	}
-}
-
+// --- LOGIN ---
 export async function login(_state: unknown, formData: FormData): Promise<{ error?: string } | undefined> {
 	"use server";
 
 	const email = formData.get("email") as string;
 	const password = formData.get("password") as string;
 
-	if (email !== process.env.EMAIL || password !== process.env.PASSWORD) {
-		return { error: "Invalid credentials" };
+	if (!email || !password) {
+		return { error: "Email and password are required." };
 	}
 
-	const expires = Date.now() + SessionDuration;
-	const session = await encrypt({ user: { email }, expires });
+	const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-	(await cookies()).set("session", session, {
-		expires: new Date(expires),
+	if (error) {
+		return { error: error.message };
+	}
+
+	// Store the Supabase access token in cookies
+	const { session } = data;
+	if (!session) {
+		return { error: "No session returned from Supabase." };
+	}
+
+	(await cookies()).set("sb:token", session.access_token, {
+		expires: new Date(Date.now() + SessionDuration),
 		httpOnly: true,
 		secure: process.env.NODE_ENV === "production",
 		sameSite: "strict",
@@ -65,46 +48,33 @@ export async function login(_state: unknown, formData: FormData): Promise<{ erro
 	return;
 }
 
+// --- LOGOUT ---
 export async function logout() {
 	"use server";
-	(await cookies()).delete("session");
+	(await cookies()).delete("sb:token");
 	redirect("/login");
 }
 
+// --- AUTH CHECK ---
 export async function auth() {
-	const session = (await cookies()).get("session")?.value;
-	if (!session) return null;
+	const token = (await cookies()).get("sb:token")?.value;
+	if (!token) return null;
 
-	const data = await decrypt(session);
-	if (!data || data.expires < Date.now()) {
-		(await cookies()).delete("session");
+	const { data, error } = await supabase.auth.getUser(token);
+	if (error || !data.user) {
+		(await cookies()).delete("sb:token");
 		return null;
 	}
 
-	return data;
+	return data.user; // full Supabase user object
 }
 
+// --- SESSION REFRESH (optional) ---
 export async function updateSession(request: NextRequest) {
-	const session = (await cookies()).get("session")?.value;
-	if (!session) return;
+	const token = (await cookies()).get("sb:token")?.value;
+	if (!token) return NextResponse.next();
 
-	const data = await decrypt(session);
-	if (!data) return;
-
-	if (data.expires - Date.now() < 60 * 60 * 1000) {
-		data.expires = Date.now() + SessionDuration;
-
-		const res = NextResponse.next();
-		res.cookies.set({
-			name: "session",
-			value: await encrypt(data),
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			expires: new Date(data.expires),
-		});
-		return res;
-	}
-
+	// Supabase auto-refreshes tokens under the hood,
+	// so here you’d normally call supabase.auth.refreshSession if needed.
 	return NextResponse.next();
 }
