@@ -31,6 +31,10 @@ export const env = createEnv({
 		// Printful
 		PRINTFUL_API_KEY: z.string().optional(),
 		PRINTFUL_STORE_ID: z.string().optional(),
+
+		// ✅ Trieve (optional, for upload-trieve.ts)
+		TRIEVE_DATASET_ID: z.string().optional(),
+		TRIEVE_API_KEY: z.string().optional(),
 	},
 
 	client: {
@@ -38,7 +42,7 @@ export const env = createEnv({
 		NEXT_PUBLIC_URL: z.string().url().optional(),
 		NEXT_PUBLIC_BASE_PATH: zBasePath,
 
-		// ✅ Added missing client vars
+		// analytics / misc
 		NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
 		NEXT_PUBLIC_NEWSLETTER_ENDPOINT: z.string().optional(),
 		NEXT_PUBLIC_LANGUAGE: z.string().optional().default("en-US"),
@@ -55,19 +59,21 @@ export const env = createEnv({
 		PRINTFUL_API_KEY: process.env.PRINTFUL_API_KEY,
 		PRINTFUL_STORE_ID: process.env.PRINTFUL_STORE_ID,
 
+		// ✅ include Trieve
+		TRIEVE_DATASET_ID: process.env.TRIEVE_DATASET_ID,
+		TRIEVE_API_KEY: process.env.TRIEVE_API_KEY,
+
 		// client
 		NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
 		NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL,
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
-
-		// ✅ Added missing runtime vars
 		NEXT_PUBLIC_UMAMI_WEBSITE_ID: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID,
 		NEXT_PUBLIC_NEWSLETTER_ENDPOINT: process.env.NEXT_PUBLIC_NEWSLETTER_ENDPOINT,
 		NEXT_PUBLIC_LANGUAGE: process.env.NEXT_PUBLIC_LANGUAGE,
 	},
 });
 
-// ---- Public URL fallback (Vercel-style) ----
+// ---- Public URL fallback ----
 const vercelHost =
 	process.env.NEXT_PUBLIC_VERCEL_ENV === "production"
 		? process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
