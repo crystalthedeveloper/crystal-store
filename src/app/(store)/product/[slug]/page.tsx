@@ -1,4 +1,3 @@
-// src/app/(store)/product/[slug]/page.tsx
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -45,7 +44,7 @@ export const generateMetadata = async (props: {
 	const { slug } = await props.params;
 	const { color, size } = await props.searchParams;
 
-	// ⚡ If Stripe is missing (eg. Webflow Cloud), don't fetch from API
+	// If Stripe isn't configured (eg. Webflow Cloud build), don't fetch product data.
 	if (!env.STRIPE_SECRET_KEY) {
 		const canonical = new URL(`${publicUrl}/product/${slug}`);
 		if (color) canonical.searchParams.set("color", color);
@@ -57,10 +56,16 @@ export const generateMetadata = async (props: {
 		};
 	}
 
+	// Normal path with product-driven metadata
 	try {
 		const { product: base } = await getProductWithPrices(slug);
 		const t = await getTranslations("/product.metadata");
 		const canonical = new URL(`${publicUrl}/product/${base.metadata.slug}`);
+		const isApparel = (base.metadata?.category ?? "").toLowerCase() === "apparel";
+		if (isApparel) {
+			if (color) canonical.searchParams.set("color", color);
+			if (size) canonical.searchParams.set("size", size);
+		}
 		return {
 			title: t("title", { productName: formatProductName(base.name, base.metadata.variant) }),
 			description: base.description ?? undefined,
@@ -81,7 +86,7 @@ export default async function SingleProductPage(props: {
 	const t = await getTranslations("/product.page");
 	const locale = await getLocale();
 
-	/* ✅ Webflow-safe fallback: no Stripe calls */
+	/* ✅ Build-safe fallback: no Stripe calls */
 	if (!env.STRIPE_SECRET_KEY) {
 		const title = deslugify(slug);
 		return (
@@ -89,7 +94,7 @@ export default async function SingleProductPage(props: {
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbLink asChild>
+							<BreadcrumbLink asChild className="inline-flex min-h-12 min-w-12 items-center justify-center">
 								<YnsLink href="/products">{t("allProducts", { default: "All Products" })}</YnsLink>
 							</BreadcrumbLink>
 						</BreadcrumbItem>
@@ -102,14 +107,12 @@ export default async function SingleProductPage(props: {
 
 				<div className="mt-6 grid gap-6 lg:grid-cols-12">
 					<div className="lg:col-span-7">
-						<div className="aspect-square w-full rounded-lg bg-neutral-100 flex items-center justify-center">
-							<span className="text-neutral-400">No Image (Stripe disabled)</span>
-						</div>
+						<div className="aspect-square w-full rounded-lg bg-neutral-100" />
 					</div>
 					<div className="lg:col-span-5">
 						<h1 className="text-3xl font-bold leading-none tracking-tight">{title}</h1>
 						<p className="mt-2 text-neutral-600">
-							Store preview is disabled in this environment. Checkout is unavailable.
+							Store preview is disabled in this environment (Stripe not configured).
 						</p>
 					</div>
 				</div>
@@ -128,6 +131,7 @@ export default async function SingleProductPage(props: {
 
 	const isApparel = (product.metadata?.category ?? "").toLowerCase() === "apparel";
 
+	// Variants
 	const { allColors, sizesForColor, selectedColor, selectedSize, selectedPrice } = isApparel
 		? getVariantSelections(prices, { color, size })
 		: {
@@ -138,6 +142,7 @@ export default async function SingleProductPage(props: {
 				selectedPrice: (product.default_price as unknown as KitPrice) ?? undefined,
 			};
 
+	// Images (prefer variant image_url)
 	const baseImages = Array.isArray(product.images) ? product.images : [];
 	const selectedPriceImage = isApparel ? (selectedPrice?.metadata?.image_url ?? "") : "";
 	const images = selectedPriceImage
@@ -147,9 +152,11 @@ export default async function SingleProductPage(props: {
 	const imageIndex = typeof image === "string" ? Number(image) : 0;
 	const mainImage = images[imageIndex] ?? images[0];
 
+	// Webflow-specific selections
 	const webflow = await getWebflowSelections(product, selectedPrice);
 	const { isWebflow, links, featurePairs, license } = webflow;
 
+	// Price to show
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
 	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
 
@@ -157,22 +164,34 @@ export default async function SingleProductPage(props: {
 		<article className="pb-12">
 			{process.env.NODE_ENV === "development" && debug === "meta" && (
 				<pre className="mb-4 overflow-auto rounded border bg-neutral-50 p-3 text-xs text-neutral-700">
-					{JSON.stringify({ product, prices }, null, 2)}
+					{JSON.stringify(
+						{
+							category: product.metadata?.category,
+							isWebflow,
+							hasSelectedPriceMeta: !!selectedPrice?.metadata,
+							links,
+							featurePairsCount: featurePairs.length,
+							hasLicense: !!license,
+						},
+						null,
+						2,
+					)}
 				</pre>
 			)}
 
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						<BreadcrumbLink asChild>
+						<BreadcrumbLink asChild className="inline-flex min-h-12 min-w-12 items-center justify-center">
 							<YnsLink href="/products">{t("allProducts")}</YnsLink>
 						</BreadcrumbLink>
 					</BreadcrumbItem>
+
 					{product.metadata?.category && (
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
-								<BreadcrumbLink asChild>
+								<BreadcrumbLink className="inline-flex min-h-12 min-w-12 items-center justify-center" asChild>
 									<YnsLink href={`/category/${product.metadata.category}`}>
 										{deslugify(product.metadata.category)}
 									</YnsLink>
@@ -180,43 +199,93 @@ export default async function SingleProductPage(props: {
 							</BreadcrumbItem>
 						</>
 					)}
+
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>
 						<BreadcrumbPage>{product.name}</BreadcrumbPage>
 					</BreadcrumbItem>
+
+					{isApparel && (selectedColor || selectedSize) && (
+						<>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbPage>
+									{[selectedColor && deslugify(selectedColor), selectedSize && deslugify(selectedSize)]
+										.filter(Boolean)
+										.join(" / ")}
+								</BreadcrumbPage>
+							</BreadcrumbItem>
+						</>
+					)}
 				</BreadcrumbList>
 			</Breadcrumb>
 
 			<StickyBottom product={product} locale={locale}>
 				<div className="mt-4 grid gap-4 lg:grid-cols-12">
 					<div className="lg:col-span-5 lg:col-start-8">
-						<h1 className="text-3xl font-bold">{product.name}</h1>
+						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
 						<PriceLabel amount={displayAmount} currency={displayCurrency} locale={locale} />
+						<div className="mt-2">
+							{typeof product.metadata.stock === "number" && product.metadata.stock <= 0 && (
+								<div>Out of stock</div>
+							)}
+						</div>
 					</div>
 
-					<div className="lg:col-span-7">
-						{mainImage && (
-							<MainProductImage
-								className="w-full rounded-lg bg-neutral-100 object-cover"
-								src={mainImage}
-								loading="eager"
-								priority
-								alt={product.name}
-							/>
-						)}
+					<div className="lg:col-span-7 lg:row-span-3 lg:row-start-1">
+						<h2 className="sr-only">{t("imagesTitle")}</h2>
+
+						<div className="grid gap-4 lg:grid-cols-3 [&>*:first-child]:col-span-3">
+							{mainImage && (
+								<MainProductImage
+									className="w-full rounded-lg bg-neutral-100 object-cover object-center transition-opacity"
+									src={mainImage}
+									loading="eager"
+									priority
+									alt=""
+								/>
+							)}
+
+							{images.slice(1).map((img, idx) => {
+								const qp = new URLSearchParams();
+								if (isApparel && selectedColor) qp.set("color", selectedColor);
+								if (isApparel && selectedSize) qp.set("size", selectedSize);
+								qp.set("image", String(idx + 1));
+								return (
+									<YnsLink key={`${img}-${idx}`} href={`?${qp}`} scroll={false}>
+										<Image
+											className="w-full rounded-lg bg-neutral-100 object-cover object-center transition-opacity"
+											src={img}
+											width={700 / 3}
+											height={700 / 3}
+											sizes="(max-width: 1024px) 33vw, (max-width: 1280px) 20vw, 225px"
+											loading="eager"
+											priority
+											alt=""
+										/>
+									</YnsLink>
+								);
+							})}
+						</div>
 					</div>
 
 					<div className="grid gap-8 lg:col-span-5">
-						<section>
-							<div className="prose">
+						<div>
+							<h2 className="sr-only">{t("descriptionTitle")}</h2>
+							<div className="prose text-secondary-foreground [&>p]:m-0">
 								<Markdown source={product.description || ""} />
 							</div>
-						</section>
+						</div>
 
+						{/* Webflow-only extras */}
 						{isWebflow && (links.length > 0 || featurePairs.length > 0 || !!license) && (
 							<>
 								<WebflowLinks links={links} />
-								{featurePairs.length > 0 && <TextPairsSection heading="Features" items={featurePairs} />}
+
+								{featurePairs.length > 0 && (
+									<TextPairsSection heading="Features" items={featurePairs} defaultOpen />
+								)}
+
 								{license && <TextPairsSection heading="License" raw={license} />}
 							</>
 						)}
@@ -237,6 +306,7 @@ export default async function SingleProductPage(props: {
 			<Suspense>
 				<SimilarProducts id={product.id} />
 			</Suspense>
+
 			<Suspense>
 				<ProductImageModal images={images} />
 			</Suspense>
