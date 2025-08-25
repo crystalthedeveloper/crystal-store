@@ -24,7 +24,8 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 	}
 
 	const t = await getTranslations("/cart.page");
-	const locale = await getLocale();
+	// ✅ Always fallback to "en" so it's never undefined
+	const locale = (await getLocale()) ?? "en";
 
 	// If Stripe is NOT configured in this environment, show the cart summary but omit payment UI
 	if (!env.STRIPE_SECRET_KEY) {
