@@ -23,13 +23,13 @@ const zBasePath = z
 
 export const env = createEnv({
 	server: {
-		// Stripe: keep optional so builds don’t fail when the secret isn’t present
-		STRIPE_SECRET_KEY: z.string().optional(),
-		STRIPE_WEBHOOK_SECRET: z.string().optional(),
-		// Currency: default to "cad" based on your setup; change if needed
+		// Stripe: required in prod, optional in dev
+		STRIPE_SECRET_KEY: process.env.NODE_ENV === "production" ? z.string() : z.string().optional(),
+		STRIPE_WEBHOOK_SECRET: process.env.NODE_ENV === "production" ? z.string() : z.string().optional(),
+
+		// Currency: default to "cad" based on your setup
 		STRIPE_CURRENCY: z.string().default("cad"),
 
-		// Feature flags / booleans
 		ENABLE_STRIPE_TAX: zBool,
 
 		// Search (Trieve)
