@@ -1,3 +1,4 @@
+// src/app/(store)/cart/page.tsx
 import type { Metadata } from "next/types";
 import { getCartFromCookiesAction } from "@/actions/cart-actions";
 import { getTranslations } from "@/i18n/server";

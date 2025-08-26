@@ -1,3 +1,4 @@
+// src/ui/checkout/checkout-card.tsx
 import * as Commerce from "commerce-kit";
 import { getLocale, getTranslations } from "@/i18n/server";
 import amex from "@/images/payments/amex.svg";
@@ -10,6 +11,9 @@ import p24 from "@/images/payments/p24.svg";
 import visa from "@/images/payments/visa.svg";
 import { isDefined } from "@/lib/utils";
 import { StripePayment } from "@/ui/checkout/stripe-payment";
+
+// ✅ Explicitly force Node runtime (Stripe & Commerce need server runtime)
+export const runtime = "nodejs";
 
 export const paymentMethods = {
 	amex,
@@ -32,7 +36,8 @@ export const CheckoutCard = async ({ cart }: { cart: Commerce.Cart }) => {
 			<h2 className="text-3xl font-bold leading-none tracking-tight">{t("checkoutTitle")}</h2>
 			<p className="mb-4 mt-2 text-sm text-muted-foreground">{t("checkoutDescription")}</p>
 			<StripePayment
-				shippingRateId={cart.cart.metadata.shippingRateId}
+				// ✅ Guard against missing metadata
+				shippingRateId={cart.cart.metadata?.shippingRateId ?? null}
 				shippingRates={structuredClone(shippingRates)}
 				allProductsDigital={cart.lines.every((line) =>
 					isDefined(line.product.shippable) ? !line.product.shippable : false,

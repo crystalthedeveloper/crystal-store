@@ -1,3 +1,4 @@
+// src/ui/checkout/stripe-payment.tsx
 "use client";
 
 import {
@@ -215,8 +216,8 @@ const PaymentForm = ({
 				// for payment methods that require redirect, we clear the cookie on the success page
 				await clearCartCookieAction();
 				const params = new URLSearchParams({
-					payment_intent: result.paymentIntent.id,
-					payment_intent_client_secret: result.paymentIntent.client_secret ?? "",
+					payment_intent: result.paymentIntent?.id ?? "",
+					payment_intent_client_secret: result.paymentIntent?.client_secret ?? "",
 				});
 				router.push("/order/success?" + params.toString());
 				// deliberately not setting isLoading to false here to prevent the button to flicker back to "Pay now" before redirecting

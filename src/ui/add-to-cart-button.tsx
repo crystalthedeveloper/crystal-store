@@ -1,4 +1,6 @@
+// src/ui/add-to-cart-button.tsx
 "use client";
+
 import { Loader2Icon } from "lucide-react";
 import { useTransition } from "react";
 import { addToCartAction } from "@/actions/cart-actions";
@@ -36,9 +38,18 @@ export const AddToCartButton = ({
 				setOpen(true);
 
 				startTransition(async () => {
-					const formData = new FormData();
-					formData.append("productId", productId);
-					await addToCartAction(formData);
+					try {
+						console.log("[AddToCartButton] Clicking add-to-cart for productId:", productId);
+
+						const formData = new FormData();
+						formData.append("productId", productId);
+
+						const result = await addToCartAction(formData);
+
+						console.log("[AddToCartButton] addToCartAction result:", result);
+					} catch (err) {
+						console.error("[AddToCartButton] Failed to add to cart:", err);
+					}
 				});
 			}}
 			aria-disabled={isDisabled}
