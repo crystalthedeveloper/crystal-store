@@ -299,7 +299,15 @@ export default async function SingleProductPage(props: {
 							selectedSize={selectedSize}
 						/>
 
-						<AddToCartButton productId={product.id} disabled={product.metadata.stock <= 0} />
+						<AddToCartButton
+							productId={
+								selectedPrice?.id ??
+								(typeof product.default_price === "object"
+									? (product.default_price as KitPrice).id
+									: (product.default_price as string))
+							}
+							disabled={product.metadata.stock <= 0}
+						/>
 					</div>
 				</div>
 			</StickyBottom>
