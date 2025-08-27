@@ -3,7 +3,6 @@
 
 import { Loader2Icon } from "lucide-react";
 import { useTransition } from "react";
-import { addToCartAction } from "@/actions/cart-actions";
 import { Button } from "@/components/ui/button";
 import { useCartModal } from "@/context/cart-modal";
 import { useTranslations } from "@/i18n/client";
@@ -16,7 +15,7 @@ export const AddToCartButton = ({
 	className,
 }: {
 	productId: string;
-	priceId?: string; // ✅ optional for Printful/Stripe variants
+	priceId?: string;
 	disabled?: boolean;
 	className?: string;
 }) => {
@@ -29,31 +28,30 @@ export const AddToCartButton = ({
 		<Button
 			id="button-add-to-cart"
 			size="lg"
-			type="submit"
+			type="button"
 			className={cn("rounded-full text-lg relative", className)}
-			onClick={async (e) => {
-				if (isDisabled) {
-					e.preventDefault();
-					return;
-				}
+			onClick={async () => {
+				if (isDisabled) return;
 
 				setOpen(true);
 
 				startTransition(async () => {
 					try {
-						console.log("[AddToCartButton] Clicking add-to-cart", { productId, priceId });
+						console.log("[AddToCartButton] Clicking add-to-cart", {
+							productId,
+							priceId,
+						});
 
-						const formData = new FormData();
-						formData.append("productId", productId);
+						const res = await fetch("/api/cart/add", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ productId, priceId }),
+						});
 
-						// ✅ only send priceId if provided
-						if (priceId) {
-							formData.append("priceId", priceId);
-						}
+						if (!res.ok) throw new Error(await res.text());
+						const data = await res.json();
 
-						const result = await addToCartAction(formData);
-
-						console.log("[AddToCartButton] addToCartAction result:", result);
+						console.log("[AddToCartButton] addToCart result:", data);
 					} catch (err) {
 						console.error("[AddToCartButton] Failed to add to cart:", err);
 					}
