@@ -11,7 +11,6 @@ const cfg: NextConfig = {
 	basePath: base || undefined,
 	assetPrefix: base || undefined,
 
-	// 👇 this is what was missing
 	publicRuntimeConfig: {
 		basePath: base || "",
 	},
@@ -58,13 +57,18 @@ const cfg: NextConfig = {
 					{ protocol: "https", hostname: "**.webflow.io" },
 					{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
 					{ protocol: "https", hostname: "www.crystalthedeveloper.ca" },
-					{ protocol: "https", hostname: "**.cosmic.webflow.services" }, // Webflow Cloud assets
+					{ protocol: "https", hostname: "**.cosmic.webflow.services" },
 				],
 				formats: ["image/avif", "image/webp"],
 			},
 
 	async rewrites() {
 		return [
+			// ✅ Proxy API calls to your Vercel backend
+			{
+				source: "/api/:path*",
+				destination: "https://crystals-store.vercel.app/api/:path*",
+			},
 			{
 				source: "/stats/:match*",
 				destination: "https://eu.umami.is/:match*",
@@ -73,7 +77,6 @@ const cfg: NextConfig = {
 	},
 };
 
-// Export both ESM + CJS
 const config = { ...cfg };
 export default config;
 try {
