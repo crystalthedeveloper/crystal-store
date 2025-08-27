@@ -31,13 +31,9 @@ import { WebflowLinks } from "@/ui/products/WebflowLinks";
 import { StickyBottom } from "@/ui/sticky-bottom";
 import { YnsLink } from "@/ui/yns-link";
 
-/* --------------------------------
-   Build-safety: never prerender
---------------------------------- */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/* -------------- Metadata (safe when Stripe is missing) -------------- */
 export const generateMetadata = async (props: {
 	params: Promise<{ slug: string }>;
 	searchParams: Promise<{ color?: string; size?: string }>;
@@ -45,7 +41,6 @@ export const generateMetadata = async (props: {
 	const { slug } = await props.params;
 	const { color, size } = await props.searchParams;
 
-	// If Stripe isn't configured (eg. Webflow Cloud build), don't fetch product data.
 	if (!env.STRIPE_SECRET_KEY) {
 		const canonical = new URL(`${publicUrl}/product/${slug}`);
 		if (color) canonical.searchParams.set("color", color);
@@ -57,7 +52,6 @@ export const generateMetadata = async (props: {
 		};
 	}
 
-	// Normal path with product-driven metadata
 	try {
 		const { product: base } = await getProductWithPrices(slug);
 		const t = await getTranslations("/product.metadata");
@@ -77,7 +71,6 @@ export const generateMetadata = async (props: {
 	}
 };
 
-/* ------------------------------ Page ------------------------------ */
 export default async function SingleProductPage(props: {
 	params: Promise<{ slug: string }>;
 	searchParams: Promise<{ color?: string; size?: string; image?: string; debug?: string }>;
@@ -87,7 +80,6 @@ export default async function SingleProductPage(props: {
 	const t = await getTranslations("/product.page");
 	const locale = await getLocale();
 
-	/* ✅ Build-safe fallback: no Stripe calls */
 	if (!env.STRIPE_SECRET_KEY) {
 		const title = deslugify(slug);
 		return (
@@ -121,7 +113,6 @@ export default async function SingleProductPage(props: {
 		);
 	}
 
-	/* ✅ Normal path (Stripe present) */
 	let product: KitProduct;
 	let prices: KitPrice[];
 	try {
@@ -131,8 +122,6 @@ export default async function SingleProductPage(props: {
 	}
 
 	const isApparel = (product.metadata?.category ?? "").toLowerCase() === "apparel";
-
-	// Variants
 	const { allColors, sizesForColor, selectedColor, selectedSize, selectedPrice } = isApparel
 		? getVariantSelections(prices, { color, size })
 		: {
@@ -143,7 +132,6 @@ export default async function SingleProductPage(props: {
 				selectedPrice: (product.default_price as unknown as KitPrice) ?? undefined,
 			};
 
-	// Images (prefer variant image_url)
 	const baseImages = Array.isArray(product.images) ? product.images : [];
 	const selectedPriceImage = isApparel ? (selectedPrice?.metadata?.image_url ?? "") : "";
 	const images = selectedPriceImage
@@ -153,11 +141,9 @@ export default async function SingleProductPage(props: {
 	const imageIndex = typeof image === "string" ? Number(image) : 0;
 	const mainImage = images[imageIndex] ?? images[0];
 
-	// Webflow-specific selections
 	const webflow = await getWebflowSelections(product, selectedPrice);
 	const { isWebflow, links, featurePairs, license } = webflow;
 
-	// Price to show
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
 	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
 
@@ -192,7 +178,7 @@ export default async function SingleProductPage(props: {
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
-								<BreadcrumbLink className="inline-flex min-h-12 min-w-12 items-center justify-center" asChild>
+								<BreadcrumbLink asChild className="inline-flex min-h-12 min-w-12 items-center justify-center">
 									<YnsLink href={`/category/${product.metadata.category}`}>
 										{deslugify(product.metadata.category)}
 									</YnsLink>
@@ -278,15 +264,12 @@ export default async function SingleProductPage(props: {
 							</div>
 						</div>
 
-						{/* Webflow-only extras */}
 						{isWebflow && (links.length > 0 || featurePairs.length > 0 || !!license) && (
 							<>
 								<WebflowLinks links={links} />
-
 								{featurePairs.length > 0 && (
 									<TextPairsSection heading="Features" items={featurePairs} defaultOpen />
 								)}
-
 								{license && <TextPairsSection heading="License" raw={license} />}
 							</>
 						)}
@@ -300,12 +283,8 @@ export default async function SingleProductPage(props: {
 						/>
 
 						<AddToCartButton
-							productId={
-								selectedPrice?.id ??
-								(typeof product.default_price === "object"
-									? (product.default_price as KitPrice).id
-									: (product.default_price as string))
-							}
+							productId={product.id} // ✅ always prod_xxx
+							priceId={selectedPrice?.id} // ✅ optional price_xxx for Printful/Stripe variants
 							disabled={product.metadata.stock <= 0}
 						/>
 					</div>

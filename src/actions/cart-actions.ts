@@ -5,6 +5,12 @@ import * as Commerce from "commerce-kit";
 import { revalidateTag } from "next/cache";
 import { clearCartCookie, getCartCookieJson, setCartCookieJson } from "@/lib/cart";
 
+type CartAddInput = {
+	productId: string;
+	cartId?: string;
+	priceId?: string; // ✅ allow optional priceId without any
+};
+
 export async function getCartFromCookiesAction() {
 	const cartJson = await getCartCookieJson();
 	if (!cartJson) {
@@ -56,13 +62,26 @@ export async function clearCartCookieAction() {
 
 export async function addToCartAction(formData: FormData) {
 	const productId = formData.get("productId");
+	const priceId = formData.get("priceId");
+
 	if (!productId || typeof productId !== "string") {
 		throw new Error("Invalid product ID");
 	}
 
-	const cart = await getCartFromCookiesAction();
+	console.log("[cart-actions] addToCartAction →", { productId, priceId });
 
-	const updatedCart = await Commerce.cartAdd({ productId, cartId: cart?.cart.id });
+	const cart = await getCartFromCookiesAction();
+	console.log("[cart-actions] existing cart:", cart?.cart?.id);
+
+	const input: CartAddInput = {
+		productId,
+		cartId: cart?.cart?.id,
+		...(typeof priceId === "string" ? { priceId } : {}),
+	};
+
+	const updatedCart = await Commerce.cartAdd(input);
+
+	console.log("[cart-actions] updated cart:", updatedCart);
 
 	if (updatedCart) {
 		await setCartCookieJson({

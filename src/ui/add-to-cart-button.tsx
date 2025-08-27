@@ -11,10 +11,12 @@ import { cn } from "@/lib/utils";
 
 export const AddToCartButton = ({
 	productId,
+	priceId,
 	disabled,
 	className,
 }: {
 	productId: string;
+	priceId?: string; // ✅ optional for Printful/Stripe variants
 	disabled?: boolean;
 	className?: string;
 }) => {
@@ -39,10 +41,15 @@ export const AddToCartButton = ({
 
 				startTransition(async () => {
 					try {
-						console.log("[AddToCartButton] Clicking add-to-cart for productId:", productId);
+						console.log("[AddToCartButton] Clicking add-to-cart", { productId, priceId });
 
 						const formData = new FormData();
 						formData.append("productId", productId);
+
+						// ✅ only send priceId if provided
+						if (priceId) {
+							formData.append("priceId", priceId);
+						}
 
 						const result = await addToCartAction(formData);
 
