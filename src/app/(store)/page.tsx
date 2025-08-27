@@ -71,7 +71,7 @@ export default async function Home() {
 							className="rounded"
 							height={450}
 							width={450}
-							src={`${publicRuntimeConfig.basePath || ""}/crystalthedeveloper-logo.png`}
+							src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/crystalthedeveloper-logo.png`}
 							style={{ objectFit: "cover" }}
 							sizes="(max-width: 640px) 70vw, 450px"
 						/>
