@@ -4,66 +4,69 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { getCartCookieJson, setCartCookieJson } from "@/lib/cart";
 
-// Request body
-type AddToCartBody = {
-	productId: string;
-	priceId?: string;
-};
+export const runtime = "nodejs";
 
-// Shape of what Commerce.cartAdd actually returns
-type CommerceCart = {
+type AddToCartBody = { productId: string; priceId?: string };
+
+// Minimal cart type we care about
+interface Cart {
 	id: string;
-	metadata: Record<string, string | undefined>; // can contain undefined
+	metadata?: Record<string, unknown>;
 	[key: string]: unknown;
-};
+}
 
-type CartAddResponse = { cart: CommerceCart };
+// ✅ helper for filtering string-only metadata
+function isStringEntry(entry: [string, unknown]): entry is [string, string] {
+	return typeof entry[1] === "string";
+}
 
 export async function POST(req: Request) {
 	try {
-		const body = (await req.json()) as AddToCartBody;
-		const { productId, priceId } = body;
-
+		const { productId, priceId } = (await req.json()) as AddToCartBody;
 		if (!productId) {
 			return NextResponse.json({ error: "Missing productId" }, { status: 400 });
 		}
 
-		// Fetch existing cart from cookie
-		const cartJson = await getCartCookieJson();
-		const cart = cartJson?.id ? await Commerce.cartGet(cartJson.id) : null;
-
-		// 👇 explicitly cast through unknown so TS stops complaining
-		const updated = (await Commerce.cartAdd({
-			productId,
-			cartId: cart?.cart?.id,
-			...(priceId ? { priceId } : {}),
-		})) as unknown as CartAddResponse;
-
-		if (!updated?.cart) {
-			return NextResponse.json({ error: "Failed to add" }, { status: 500 });
+		// Ensure we have a cartId (cookie → or create)
+		let cartId = (await getCartCookieJson())?.id;
+		if (!cartId) {
+			const created = (await Commerce.cartCreate()) as unknown as Cart;
+			cartId = created.id;
+			await setCartCookieJson({ id: cartId, linesCount: 0 });
 		}
 
-		const updatedCart = updated.cart;
+		// Add to cart (Commerce SDK returns wrapped response → cast via unknown)
+		const cart = (await Commerce.cartAdd({
+			cartId,
+			productId,
+			...(priceId ? { priceId } : {}),
+		})) as unknown as Cart;
 
-		// ✅ filter out undefined values and ensure correct typing
-		const safeMetadata = Object.fromEntries(
-			Object.entries(updatedCart.metadata).filter(
-				(entry): entry is [string, string] => typeof entry[1] === "string",
-			),
-		);
+		if (!cart?.id) {
+			return NextResponse.json({ error: "cartAdd returned no cart" }, { status: 500 });
+		}
 
-		// Update cookies with safe metadata
+		// ✅ Safe metadata → strings only
+		const safeMeta = Object.fromEntries(Object.entries(cart.metadata ?? {}).filter(isStringEntry)) as Record<
+			string,
+			string
+		>;
+
 		await setCartCookieJson({
-			id: updatedCart.id,
-			linesCount: Commerce.cartCount(safeMetadata),
+			id: cart.id,
+			linesCount: Commerce.cartCount(safeMeta),
 		});
 
-		// Revalidate cache
-		revalidateTag(`cart-${updatedCart.id}`);
-
-		return NextResponse.json({ cart: updatedCart });
+		revalidateTag(`cart-${cart.id}`);
+		return NextResponse.json({ cart });
 	} catch (err) {
-		console.error("❌ add-to-cart API error", err);
-		return NextResponse.json({ error: "Internal error" }, { status: 500 });
+		console.error("❌ /api/cart/add fatal", err);
+		return NextResponse.json(
+			{
+				error: "Internal server error",
+				details: err instanceof Error ? err.message : String(err),
+			},
+			{ status: 500 },
+		);
 	}
 }

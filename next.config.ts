@@ -1,4 +1,5 @@
 // next.config.ts
+// next.config.ts
 import type { NextConfig } from "next";
 
 const base =
@@ -64,9 +65,13 @@ const cfg: NextConfig = {
 
 	async rewrites() {
 		return [
-			// ✅ Proxy API calls to your Vercel backend
+			// ✅ Proxy both root (/api/*) and /store/api/* to your deployed backend
 			{
 				source: "/api/:path*",
+				destination: "https://crystals-store.vercel.app/api/:path*",
+			},
+			{
+				source: "/store/api/:path*",
 				destination: "https://crystals-store.vercel.app/api/:path*",
 			},
 			{
