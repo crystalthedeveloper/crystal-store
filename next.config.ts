@@ -1,5 +1,4 @@
 // next.config.ts
-// next.config.ts
 import type { NextConfig } from "next";
 
 const base =
@@ -42,30 +41,40 @@ const cfg: NextConfig = {
 		return config;
 	},
 
+	// ✅ Only disable Next.js image optimization on Webflow Cloud
+	// Locally & Vercel: allow Stripe + Printful + Webflow domains
 	images: isWebflow
-		? undefined
+		? { unoptimized: true }
 		: {
 				remotePatterns: [
-					{ protocol: "https", hostname: "files.stripe.com" },
+					// Stripe signed links
+					{ protocol: "https", hostname: "files.stripe.com", pathname: "/**" },
+
+					// Printful
 					{ protocol: "https", hostname: "files.cdn.printful.com" },
 					{ protocol: "https", hostname: "files.printful.com" },
 					{ protocol: "https", hostname: "images.printful.com" },
 					{ protocol: "https", hostname: "img.printful.com" },
+
+					// Media
 					{ protocol: "https", hostname: "img.youtube.com" },
 					{ protocol: "https", hostname: "vumbnail.com" },
+
+					// Webflow assets
 					{ protocol: "https", hostname: "uploads-ssl.webflow.com" },
 					{ protocol: "https", hostname: "assets.website-files.com" },
 					{ protocol: "https", hostname: "**.webflow.io" },
+					{ protocol: "https", hostname: "**.cosmic.webflow.services" },
+
+					// Vercel storage + your domain
 					{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
 					{ protocol: "https", hostname: "www.crystalthedeveloper.ca" },
-					{ protocol: "https", hostname: "**.cosmic.webflow.services" },
 				],
 				formats: ["image/avif", "image/webp"],
 			},
 
 	async rewrites() {
 		return [
-			// ✅ Proxy both root (/api/*) and /store/api/* to your deployed backend
 			{
 				source: "/api/:path*",
 				destination: "https://crystals-store.vercel.app/api/:path*",
