@@ -1,3 +1,4 @@
+// root layout
 //import "@devlink/global.css";
 //import { DevLinkProvider } from "@devlink/DevLinkProvider";
 import "@/app/globals.css";
@@ -41,8 +42,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 						data-website-id={env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
 					/>
 				)}
-				<SpeedInsights />
-				<Analytics />
+				{process.env.NODE_ENV === "production" && !process.env.WEBFLOW_CLOUD && (
+					<>
+						<SpeedInsights />
+						<Analytics />
+					</>
+				)}
 			</body>
 		</html>
 	);
