@@ -29,64 +29,74 @@ const { publicRuntimeConfig } = getConfig();
 
 export default async function Home() {
 	const t = await getTranslations("/");
+	// 🔔 Temporary notice at the very top
+	const NoticeBanner = () => (
+		<div className="w-full bg-yellow-400 text-black text-center py-2 font-semibold z-20">
+			⚠️ Under Construction — New eCommerce Store (Next.js + Webflow Cloud)
+		</div>
+	);
 
 	// Safe preview if Stripe isn’t configured
 	if (!env.STRIPE_SECRET_KEY) {
 		return (
-			<main>
-				<section className="rounded bg-neutral-100 py-8 sm:py-12">
-					<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
-						<div className="max-w-md space-y-4">
-							<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
-								Shop, Style, Create — and Support the Dev
-							</h2>
-							<p className="text-pretty text-neutral-600">
-								Store preview is disabled in this environment (Stripe is not configured).
-							</p>
+			<>
+				<NoticeBanner />
 
-							<div className="flex gap-4">
-								<YnsLink
-									href={t("hero.link")}
-									aria-label={t("hero.aria")}
-									className="inline-flex h-10 items-center justify-center rounded-full bg-neutral-900 px-6 font-medium text-neutral-50 transition-colors hover:bg-neutral-900/90 focus:outline-hidden focus:ring-1 focus:ring-neutral-950"
-								>
-									{t("hero.action")}
-								</YnsLink>
+				<main>
+					<section className="rounded bg-neutral-100 py-8 sm:py-12">
+						<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
+							<div className="max-w-md space-y-4">
+								<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+									Shop, Style, Create — and Support the Dev
+								</h2>
+								<p className="text-pretty text-neutral-600">
+									Store preview is disabled in this environment (Stripe is not configured).
+								</p>
 
-								<YnsLink
-									href={t("support.link")}
-									aria-label={t("support.aria")}
-									className="inline-flex h-10 items-center justify-center rounded-full px-6 font-medium text-black transition-colors hover:opacity-90 focus:outline-hidden focus:ring-1 focus:ring-yellow-600"
-									style={{ backgroundColor: "#ffe600" }}
-								>
-									{t("support.action")}
-								</YnsLink>
+								<div className="flex gap-4">
+									<YnsLink
+										href={t("hero.link")}
+										aria-label={t("hero.aria")}
+										className="inline-flex h-10 items-center justify-center rounded-full bg-neutral-900 px-6 font-medium text-neutral-50 transition-colors hover:bg-neutral-900/90 focus:outline-hidden focus:ring-1 focus:ring-neutral-950"
+									>
+										{t("hero.action")}
+									</YnsLink>
+
+									<YnsLink
+										href={t("support.link")}
+										aria-label={t("support.aria")}
+										className="inline-flex h-10 items-center justify-center rounded-full px-6 font-medium text-black transition-colors hover:opacity-90 focus:outline-hidden focus:ring-1 focus:ring-yellow-600"
+										style={{ backgroundColor: "#ffe600" }}
+									>
+										{t("support.action")}
+									</YnsLink>
+								</div>
 							</div>
+
+							<Image
+								alt="crystal The Developer logo"
+								loading="eager"
+								priority
+								className="rounded"
+								height={450}
+								width={450}
+								src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/crystalthedeveloper-logo.png`}
+								style={{ objectFit: "cover" }}
+								sizes="(max-width: 640px) 70vw, 450px"
+							/>
 						</div>
+					</section>
 
-						<Image
-							alt="crystal The Developer logo"
-							loading="eager"
-							priority
-							className="rounded"
-							height={450}
-							width={450}
-							src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/crystalthedeveloper-logo.png`}
-							style={{ objectFit: "cover" }}
-							sizes="(max-width: 640px) 70vw, 450px"
-						/>
-					</div>
-				</section>
-
-				{/* Categories don’t require Stripe */}
-				<section className="w-full py-8">
-					<div className="grid gap-8 lg:grid-cols-2">
-						{StoreConfig.categories.map(({ slug, image: src }) => (
-							<CategoryBox key={slug} categorySlug={slug} src={src} />
-						))}
-					</div>
-				</section>
-			</main>
+					{/* Categories don’t require Stripe */}
+					<section className="w-full py-8">
+						<div className="grid gap-8 lg:grid-cols-2">
+							{StoreConfig.categories.map(({ slug, image: src }) => (
+								<CategoryBox key={slug} categorySlug={slug} src={src} />
+							))}
+						</div>
+					</section>
+				</main>
+			</>
 		);
 	}
 
@@ -101,6 +111,8 @@ export default async function Home() {
 
 	return (
 		<main>
+			<NoticeBanner />
+
 			<section className="rounded bg-neutral-100 py-8 sm:py-12">
 				<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
 					<div className="max-w-md space-y-4">

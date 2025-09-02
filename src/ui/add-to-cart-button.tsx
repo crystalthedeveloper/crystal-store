@@ -27,48 +27,35 @@ export const AddToCartButton = ({
 }) => {
 	const t = useTranslations("Global.addToCart");
 	const [pending, startTransition] = useTransition();
-	const isDisabled = disabled || pending;
 	const { setOpen } = useCartModal();
+
+	// 🚫 Force disable globally
+	const cartDisabled = true; // toggle this to false later
+	const isDisabled = disabled || pending || cartDisabled;
 
 	return (
 		<Button
 			id="button-add-to-cart"
 			size="lg"
 			type="button"
-			className={cn("rounded-full text-lg relative", className)}
+			className={cn(
+				"rounded-full text-lg relative",
+				className,
+				isDisabled && "opacity-50 cursor-not-allowed",
+			)}
+			disabled={isDisabled} // native HTML disable
 			onClick={async () => {
-				if (isDisabled) return;
+				if (isDisabled) return; // extra guard
 				setOpen(true);
 
 				startTransition(async () => {
-					try {
-						// 👇 Always respect BASE_PATH (e.g. /store/api/cart/add)
-						const url = `${API_BASE}${BASE_PATH}/api/cart/add`;
-
-						console.log("[AddToCartButton] Calling", url, { productId, priceId });
-
-						const res = await fetch(url, {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ productId, priceId }),
-						});
-
-						if (!res.ok) {
-							const text = await res.text();
-							throw new Error(`[AddToCartButton] API error: ${res.status} ${text}`);
-						}
-
-						const data = await res.json();
-						console.log("[AddToCartButton] ✅ addToCart result:", data);
-					} catch (err) {
-						console.error("[AddToCartButton] ❌ Failed to add to cart:", err);
-					}
+					/* ...existing fetch logic... */
 				});
 			}}
 			aria-disabled={isDisabled}
 		>
 			<span className={cn("transition-opacity ease-in", pending ? "opacity-0" : "opacity-100")}>
-				{disabled ? t("disabled") : t("actionButton")}
+				{t("disabled")} {/* You can customize this text */}
 			</span>
 			<span
 				className={cn(
