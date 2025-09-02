@@ -10,9 +10,6 @@ import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Nav } from "@/ui/nav/nav";
 import { CartModalPage } from "./cart/cart-modal";
 
-// ✅ Client-only analytics loader
-import { VercelAnalyticsScripts } from "./vercel-analytics";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -68,13 +65,6 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
 
-	const isProd = process.env.NODE_ENV === "production";
-	const isVercel = !!process.env.VERCEL;
-	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
-
-	// ✅ Server-side precheck: don’t even render analytics on Webflow / non-Vercel
-	const allowSSRAnalytics = isProd && isVercel && !isWebflowCloud;
-
 	return (
 		<>
 			<CartModalProvider>
@@ -94,9 +84,6 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 					logoUrl: logoUrl ?? null,
 				})}
 			/>
-
-			{/* ✅ Only add client loader if server conditions pass */}
-			{allowSSRAnalytics && <VercelAnalyticsScripts />}
 		</>
 	);
 }
