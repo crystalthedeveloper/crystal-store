@@ -1,7 +1,6 @@
 // src/app/(store)/layout.tsx
-import Script from "next/script";
+// src/app/(store)/layout.tsx
 import type Stripe from "stripe";
-
 import "@/app/globals.css";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +10,9 @@ import { Footer } from "@/ui/footer/footer";
 import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Nav } from "@/ui/nav/nav";
 import { CartModalPage } from "./cart/cart-modal";
+
+// ✅ Client-only analytics loader
+import { VercelAnalyticsScripts } from "./vercel-analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,21 +44,6 @@ function extractFileUrl(file: unknown): string | undefined {
 		return data?.url ?? undefined;
 	}
 	return undefined;
-}
-
-// ✅ Only load analytics if prod + Vercel + not Webflow + hostname whitelisted
-function shouldLoadAnalytics(): boolean {
-	if (typeof window === "undefined") return false;
-
-	const host = window.location.hostname;
-	const isProd = process.env.NODE_ENV === "production";
-	const isVercel = !!process.env.VERCEL;
-	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
-
-	if (!isProd || !isVercel || isWebflowCloud) return false;
-
-	// Whitelist your actual store domains only
-	return host === "crystals-store.vercel.app" || host === "store.crystalthedeveloper.ca";
 }
 
 export default async function StoreLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -102,12 +89,8 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				})}
 			/>
 
-			{shouldLoadAnalytics() && (
-				<>
-					<Script defer src="/_vercel/insights/script.js" />
-					<Script defer src="/_vercel/speed-insights/script.js" />
-				</>
-			)}
+			{/* ✅ Client-only: loads analytics only on real Vercel domains */}
+			<VercelAnalyticsScripts />
 		</>
 	);
 }
