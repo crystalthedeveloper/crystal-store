@@ -16,7 +16,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** Minimal local shapes (keep runtime clean) */
 type SignedLink = { url?: string | null; expired?: boolean } | null | undefined;
 type LogoRef = {
 	id?: string | null;
@@ -28,7 +27,6 @@ type AccountGetShape = {
 	logo?: LogoRef;
 } | null;
 
-/** fileGet may return a plain object {url} or a wrapper {data: {url}} */
 type FileGetPlain = { url?: string | null } | null;
 type FileGetWrapped = { data?: { url?: string | null } | null } | null;
 type FileGetShape = FileGetPlain | FileGetWrapped;
@@ -46,6 +44,21 @@ function extractFileUrl(file: unknown): string | undefined {
 	return undefined;
 }
 
+// ✅ Only load analytics if prod + Vercel + not Webflow + hostname whitelisted
+function shouldLoadAnalytics(): boolean {
+	if (typeof window === "undefined") return false;
+
+	const host = window.location.hostname;
+	const isProd = process.env.NODE_ENV === "production";
+	const isVercel = !!process.env.VERCEL;
+	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
+
+	if (!isProd || !isVercel || isWebflowCloud) return false;
+
+	// Whitelist your actual store domains only
+	return host === "crystals-store.vercel.app" || host === "store.crystalthedeveloper.ca";
+}
+
 export default async function StoreLayout({ children }: Readonly<{ children: React.ReactNode }>) {
 	let accountResult: AccountGetShape = null;
 	let logoUrl: string | undefined;
@@ -53,7 +66,6 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 	if (env.STRIPE_SECRET_KEY) {
 		try {
 			const { accountGet, fileGet } = await import("commerce-kit");
-
 			accountResult = await accountGet();
 
 			const liveLink = accountResult?.logo?.links?.data?.find((l) => l && !l.expired);
@@ -69,13 +81,6 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 	} else {
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
-
-	const isProd = process.env.NODE_ENV === "production";
-	const isVercel = !!process.env.VERCEL;
-	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
-
-	// Runtime check: allow only on *.vercel.app domains
-	const allowAnalytics = typeof window !== "undefined" && window.location.hostname.endsWith("vercel.app");
 
 	return (
 		<>
@@ -97,8 +102,7 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				})}
 			/>
 
-			{/* ✅ Analytics only on production Vercel deploys */}
-			{isProd && isVercel && !isWebflowCloud && allowAnalytics && (
+			{shouldLoadAnalytics() && (
 				<>
 					<Script defer src="/_vercel/insights/script.js" />
 					<Script defer src="/_vercel/speed-insights/script.js" />
