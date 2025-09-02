@@ -35,12 +35,10 @@ type FileGetShape = FileGetPlain | FileGetWrapped;
 
 function extractFileUrl(file: unknown): string | undefined {
 	if (!file || typeof file !== "object") return undefined;
-	// plain { url }
 	if ("url" in file) {
 		const u = (file as { url?: string | null }).url;
 		return u ?? undefined;
 	}
-	// wrapped { data: { url } }
 	if ("data" in file) {
 		const data = (file as { data?: { url?: string | null } | null }).data ?? null;
 		return data?.url ?? undefined;
@@ -52,14 +50,12 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 	let accountResult: AccountGetShape = null;
 	let logoUrl: string | undefined;
 
-	// Only touch commerce when Stripe is configured (prevents Neon import at build time)
 	if (env.STRIPE_SECRET_KEY) {
 		try {
 			const { accountGet, fileGet } = await import("commerce-kit");
 
 			accountResult = await accountGet();
 
-			// Prefer a non-expired signed URL if present
 			const liveLink = accountResult?.logo?.links?.data?.find((l) => l && !l.expired);
 			if (liveLink?.url) {
 				logoUrl = liveLink.url ?? undefined;
@@ -74,9 +70,12 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
 
-	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
 	const isProd = process.env.NODE_ENV === "production";
 	const isVercel = !!process.env.VERCEL;
+	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
+
+	// Runtime check: allow only on *.vercel.app domains
+	const allowAnalytics = typeof window !== "undefined" && window.location.hostname.endsWith("vercel.app");
 
 	return (
 		<>
@@ -91,16 +90,15 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				</TooltipProvider>
 			</CartModalProvider>
 
-			{/* JSON-LD stays resilient; missing fields are omitted */}
 			<JsonLd
 				jsonLd={accountToWebsiteJsonLd({
-					account: accountResult?.account ?? null, // Stripe.Account | null
-					logoUrl: logoUrl ?? null, // string | null
+					account: accountResult?.account ?? null,
+					logoUrl: logoUrl ?? null,
 				})}
 			/>
 
-			{/* ✅ Only load analytics if prod + Vercel + not Webflow */}
-			{isProd && isVercel && !isWebflowCloud && (
+			{/* ✅ Analytics only on production Vercel deploys */}
+			{isProd && isVercel && !isWebflowCloud && allowAnalytics && (
 				<>
 					<Script defer src="/_vercel/insights/script.js" />
 					<Script defer src="/_vercel/speed-insights/script.js" />
