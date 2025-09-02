@@ -1,6 +1,9 @@
 // src/app/(store)/layout.tsx
-import "@/app/globals.css";
+import Script from "next/script";
 import type Stripe from "stripe"; // type-only (no runtime bundle)
+
+import "@/app/globals.css";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartModalProvider } from "@/context/cart-modal";
 import { env } from "@/env.mjs";
@@ -91,6 +94,14 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 					logoUrl: logoUrl ?? null, // string | null
 				})}
 			/>
+
+			{/* ✅ Force absolute analytics scripts so they work inside Webflow /store */}
+			{process.env.NODE_ENV === "production" && (
+				<>
+					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/insights/script.js" />
+					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/speed-insights/script.js" />
+				</>
+			)}
 		</>
 	);
 }
