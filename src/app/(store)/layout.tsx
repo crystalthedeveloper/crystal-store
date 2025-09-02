@@ -75,6 +75,8 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 	}
 
 	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
+	const isProd = process.env.NODE_ENV === "production";
+	const isVercel = !!process.env.VERCEL;
 
 	return (
 		<>
@@ -97,11 +99,11 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				})}
 			/>
 
-			{/* ✅ Only load analytics if not Webflow Cloud */}
-			{process.env.NODE_ENV === "production" && !isWebflowCloud && (
+			{/* ✅ Only load analytics if prod + Vercel + not Webflow */}
+			{isProd && isVercel && !isWebflowCloud && (
 				<>
-					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/insights/script.js" />
-					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/speed-insights/script.js" />
+					<Script defer src="/_vercel/insights/script.js" />
+					<Script defer src="/_vercel/speed-insights/script.js" />
 				</>
 			)}
 		</>
