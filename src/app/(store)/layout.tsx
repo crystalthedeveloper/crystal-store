@@ -1,5 +1,4 @@
 // src/app/(store)/layout.tsx
-// src/app/(store)/layout.tsx
 import type Stripe from "stripe";
 import "@/app/globals.css";
 
@@ -69,6 +68,13 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
 
+	const isProd = process.env.NODE_ENV === "production";
+	const isVercel = !!process.env.VERCEL;
+	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
+
+	// ✅ Server-side precheck: don’t even render analytics on Webflow / non-Vercel
+	const allowSSRAnalytics = isProd && isVercel && !isWebflowCloud;
+
 	return (
 		<>
 			<CartModalProvider>
@@ -89,8 +95,8 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				})}
 			/>
 
-			{/* ✅ Client-only: loads analytics only on real Vercel domains */}
-			<VercelAnalyticsScripts />
+			{/* ✅ Only add client loader if server conditions pass */}
+			{allowSSRAnalytics && <VercelAnalyticsScripts />}
 		</>
 	);
 }
