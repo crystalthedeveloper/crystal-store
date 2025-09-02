@@ -1,8 +1,8 @@
 // src/store.config.ts
-import ApparelImage from "@/images/apparel.jpg";
-import MaintenanceImage from "@/images/maintenance.jpg";
-import SupportImage from "@/images/support.jpg";
-import WebflowImage from "@/images/webflow.jpg";
+import ApparelImage from "@/images/apparel.webp";
+import MaintenanceImage from "@/images/maintenance.webp";
+import SupportImage from "@/images/support.webp";
+import WebflowImage from "@/images/webflow.webp";
 
 export const config = {
 	categories: [
