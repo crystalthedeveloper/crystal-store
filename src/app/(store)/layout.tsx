@@ -1,6 +1,6 @@
 // src/app/(store)/layout.tsx
 import Script from "next/script";
-import type Stripe from "stripe"; // type-only (no runtime bundle)
+import type Stripe from "stripe";
 
 import "@/app/globals.css";
 
@@ -74,6 +74,8 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
 	}
 
+	const isWebflowCloud = process.env.WEBFLOW_CLOUD === "true";
+
 	return (
 		<>
 			<CartModalProvider>
@@ -95,8 +97,8 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				})}
 			/>
 
-			{/* ✅ Force absolute analytics scripts so they work inside Webflow /store */}
-			{process.env.NODE_ENV === "production" && (
+			{/* ✅ Only load analytics if not Webflow Cloud */}
+			{process.env.NODE_ENV === "production" && !isWebflowCloud && (
 				<>
 					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/insights/script.js" />
 					<Script defer src="https://www.crystalthedeveloper.ca/_vercel/speed-insights/script.js" />

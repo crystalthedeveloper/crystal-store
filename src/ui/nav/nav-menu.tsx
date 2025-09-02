@@ -9,11 +9,6 @@ const links: LinkItem[] = [
 		label: name,
 		href: `/category/${slug}`,
 	})),
-	{
-		label: "Crystal The Developer Inc.",
-		href: "https://www.crystalthedeveloper.ca",
-		newTab: false,
-	},
 ];
 
 export const NavMenu = () => {

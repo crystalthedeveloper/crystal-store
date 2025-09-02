@@ -13,8 +13,9 @@ const sections = [
 		})),
 	},
 	{
-		header: "Support",
+		header: "Company",
 		links: [
+			{ label: "Crystal The Developer Inc.", href: "https://www.crystalthedeveloper.ca" },
 			{ label: "Jobs", href: "https://www.crystalthedeveloper.ca/jobs" },
 			{ label: "Website Pricing", href: "https://www.crystalthedeveloper.ca/pricing" },
 			{ label: "Contact Us", href: "mailto:contact@crystalthedeveloper.ca" },
