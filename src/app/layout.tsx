@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 						data-website-id={env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
 					/>
 				)}
-				{process.env.NODE_ENV === "production" && !process.env.WEBFLOW_CLOUD && (
+				{process.env.NODE_ENV === "production" && process.env.WEBFLOW_CLOUD !== "true" && (
 					<>
 						<SpeedInsights />
 						<Analytics />

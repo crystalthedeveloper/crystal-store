@@ -9,10 +9,12 @@ import { useTranslations } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || ""; // e.g. "/store"
+
+// ✅ API_BASE respects basePath (Webflow Cloud or local)
 const API_BASE =
 	process.env.NODE_ENV === "development"
-		? "" // → http://localhost:3000
-		: process.env.NEXT_PUBLIC_URL || "https://crystals-store.vercel.app";
+		? BASE_PATH // → http://localhost:3000/store/api/...
+		: process.env.NEXT_PUBLIC_URL + BASE_PATH; // → https://www.crystalthedeveloper.ca/store/api/...
 
 export const AddToCartButton = ({
 	productId,
@@ -27,35 +29,50 @@ export const AddToCartButton = ({
 }) => {
 	const t = useTranslations("Global.addToCart");
 	const [pending, startTransition] = useTransition();
+	const isDisabled = disabled || pending;
 	const { setOpen } = useCartModal();
-
-	// 🚫 Force disable globally
-	const cartDisabled = true; // toggle this to false later
-	const isDisabled = disabled || pending || cartDisabled;
 
 	return (
 		<Button
 			id="button-add-to-cart"
 			size="lg"
 			type="button"
-			className={cn(
-				"rounded-full text-lg relative",
-				className,
-				isDisabled && "opacity-50 cursor-not-allowed",
-			)}
-			disabled={isDisabled} // native HTML disable
+			className={cn("rounded-full text-lg relative", className)}
 			onClick={async () => {
-				if (isDisabled) return; // extra guard
+				if (isDisabled) return;
 				setOpen(true);
 
 				startTransition(async () => {
-					/* ...existing fetch logic... */
+					try {
+						const url = `${API_BASE}/api/cart/add`;
+
+						console.log("[AddToCartButton] Calling", url, {
+							productId,
+							priceId,
+						});
+
+						const res = await fetch(url, {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ productId, priceId }),
+						});
+
+						if (!res.ok) {
+							const text = await res.text();
+							throw new Error(`[AddToCartButton] API error: ${res.status} ${text}`);
+						}
+
+						const data = await res.json();
+						console.log("[AddToCartButton] ✅ addToCart result:", data);
+					} catch (err) {
+						console.error("[AddToCartButton] ❌ Failed to add to cart:", err);
+					}
 				});
 			}}
 			aria-disabled={isDisabled}
 		>
 			<span className={cn("transition-opacity ease-in", pending ? "opacity-0" : "opacity-100")}>
-				{t("disabled")} {/* You can customize this text */}
+				{disabled ? t("disabled") : t("actionButton")}
 			</span>
 			<span
 				className={cn(
