@@ -1,3 +1,4 @@
+// src/ui/checkout/cart-summary-table.tsx
 "use client";
 
 import type * as Commerce from "commerce-kit";
@@ -18,27 +19,83 @@ import { CartAmountWithSpinner, CartItemLineTotal, CartItemQuantity } from "@/ui
 import { FormatDeliveryEstimate } from "@/ui/checkout/shipping-rates-section";
 import { YnsLink } from "@/ui/yns-link";
 
+// 👇 Local type ensures line-level metadata is usable
+type CartLineWithPrice = Commerce.Cart["lines"][number] & {
+	price?: {
+		id: string;
+		unit_amount: number | null;
+		currency: string;
+		metadata?: Record<string, string>;
+	};
+	metadata?: Record<string, string>; // ✅ add this so TS knows about metadata
+};
+
+// helper to normalize strings
+function norm(v?: string) {
+	return (v ?? "").toLowerCase().trim();
+}
+
+// 🔑 Unique row key: product + variant metadata
+// 🔑 Unique row key: product + price + variant metadata
+function getLineKey(line: CartLineWithPrice) {
+	const priceId = line.price?.id ?? line.product.default_price?.id ?? "noprice";
+
+	// ✅ Always use normalized metadata from `price.metadata`
+	const color = norm(line.price?.metadata?.color) || "nocolor";
+	const size = norm(line.price?.metadata?.size) || "nosize";
+
+	// Variant only comes from product-level metadata
+	const variant = norm(line.product.metadata?.variant as string | undefined) || "novariant";
+
+	return `${line.product.id}-${priceId}-${color}-${size}-${variant}`;
+}
+
 export const CartSummaryTable = ({ cart, locale }: { cart: Commerce.Cart; locale: string }) => {
 	const t = useTranslations("/cart.page.summaryTable");
 
 	const [optimisticCart, dispatchOptimisticCartAction] = useOptimistic(
 		cart,
-		(prevCart, action: { productId: string; action: "INCREASE" | "DECREASE" }) => {
+		(
+			prevCart: Commerce.Cart,
+			action: {
+				productId: string;
+				priceId?: string;
+				color?: string;
+				size?: string;
+				variant?: string;
+				action: "INCREASE" | "DECREASE";
+			},
+		): Commerce.Cart => {
 			const modifier = action.action === "INCREASE" ? 1 : -1;
-
 			return {
 				...prevCart,
 				lines: prevCart.lines.map((line) => {
-					if (line.product.id === action.productId) {
-						return { ...line, quantity: line.quantity + modifier };
+					const l = line as CartLineWithPrice;
+					const linePriceId = l.price?.id ?? l.product.default_price?.id;
+					const lineColor = norm(l.price?.metadata?.color);
+					const lineSize = norm(l.price?.metadata?.size);
+					const lineVariant = norm(l.product.metadata?.variant as string | undefined);
+
+					if (
+						l.product.id === action.productId &&
+						linePriceId === action.priceId &&
+						lineColor === norm(action.color) &&
+						lineSize === norm(action.size) &&
+						lineVariant === norm(action.variant)
+					) {
+						return {
+							...l,
+							quantity: Math.max(0, l.quantity + modifier),
+						};
 					}
-					return line;
+					return l;
 				}),
 			};
 		},
 	);
 
-	const currency = optimisticCart.lines[0]!.product.default_price.currency;
+	const firstLine = optimisticCart.lines[0] as CartLineWithPrice | undefined;
+	const currency = firstLine?.price?.currency ?? firstLine?.product.default_price?.currency ?? "usd";
 	const total = calculateCartTotalPossiblyWithTax(optimisticCart);
 
 	return (
@@ -49,67 +106,103 @@ export const CartSummaryTable = ({ cart, locale }: { cart: Commerce.Cart; locale
 						<TableHead className="hidden w-24 sm:table-cell">
 							<span className="sr-only">{t("imageCol")}</span>
 						</TableHead>
-						<TableHead className="">{t("productCol")}</TableHead>
+						<TableHead>{t("productCol")}</TableHead>
 						<TableHead className="w-1/6 min-w-32">{t("priceCol")}</TableHead>
 						<TableHead className="w-1/6 min-w-32">{t("quantityCol")}</TableHead>
 						<TableHead className="w-1/6 min-w-32 text-right">{t("totalCol")}</TableHead>
 					</TableRow>
 				</TableHeader>
+
 				<TableBody>
 					{optimisticCart.lines.map((line) => {
-						// @todo figure out what to do with this object; how to diplay it nicely
-						// do some research
-						// const _taxLine = optimisticCart.taxCalculation?.line_items?.data.find(
-						// 	(taxLine) => taxLine.product === line.product.id,
-						// );
+						const l = line as CartLineWithPrice;
+						const price = l.price ?? l.product.default_price;
+						if (!price) return null;
+
+						const priceId = price.id;
+						const unitAmount = price.unit_amount ?? 0;
+						const lineCurrency = price.currency ?? "usd";
+
+						const color = norm(l.metadata?.color) || norm(price.metadata?.color);
+						const size = norm(l.metadata?.size) || norm(price.metadata?.size);
+						const variant =
+							norm(l.metadata?.variant) || norm(l.product.metadata?.variant as string | undefined);
+
+						const rowKey = getLineKey(l);
+						const variantParts = [color, size, variant].filter(Boolean);
+
 						return (
-							<TableRow key={line.product.id}>
+							<TableRow key={rowKey}>
 								<TableCell className="hidden sm:table-cell sm:w-24">
-									{line.product.images[0] && (
+									{price.metadata?.image_url ? (
 										<Image
 											className="aspect-square rounded-md object-cover"
-											src={line.product.images[0]}
+											src={price.metadata.image_url}
 											width={96}
 											height={96}
-											alt=""
+											alt={l.product.name ?? ""}
 										/>
+									) : l.product.images?.[0] ? (
+										<Image
+											className="aspect-square rounded-md object-cover"
+											src={l.product.images[0]}
+											width={96}
+											height={96}
+											alt={l.product.name ?? ""}
+										/>
+									) : (
+										<div className="w-24 h-24 rounded-md bg-neutral-100" />
 									)}
 								</TableCell>
+
 								<TableCell className="font-medium">
 									<YnsLink
 										className="transition-colors hover:text-muted-foreground"
-										href={`/product/${line.product.metadata.slug}`}
+										href={`/product/${l.product.metadata.slug}`}
 									>
-										{formatProductName(line.product.name, line.product.metadata.variant)}
+										{formatProductName(l.product.name, variantParts.join(" / "))}
 									</YnsLink>
 								</TableCell>
+
 								<TableCell>
 									{formatMoney({
-										amount: line.product.default_price.unit_amount ?? 0,
-										currency: line.product.default_price.currency,
+										amount: unitAmount,
+										currency: lineCurrency,
 										locale,
 									})}
 								</TableCell>
+
 								<TableCell>
 									<CartItemQuantity
 										cartId={cart.cart.id}
-										quantity={line.quantity}
-										productId={line.product.id}
-										onChange={dispatchOptimisticCartAction}
+										quantity={l.quantity}
+										productId={l.product.id}
+										onChange={(args) =>
+											dispatchOptimisticCartAction({
+												productId: l.product.id,
+												priceId,
+												color,
+												size,
+												variant,
+												action: args.action,
+											})
+										}
 									/>
 								</TableCell>
+
 								<TableCell className="text-right">
 									<CartItemLineTotal
-										currency={line.product.default_price.currency}
-										quantity={line.quantity}
-										unitAmount={line.product.default_price.unit_amount ?? 0}
-										productId={line.product.id}
+										currency={lineCurrency}
+										quantity={l.quantity}
+										unitAmount={unitAmount}
+										productId={l.product.id}
 										locale={locale}
 									/>
 								</TableCell>
 							</TableRow>
 						);
 					})}
+
 					{cart.shippingRate && (
 						<TableRow>
 							<TableCell className="hidden sm:table-cell sm:w-24"></TableCell>
@@ -130,20 +223,22 @@ export const CartSummaryTable = ({ cart, locale }: { cart: Commerce.Cart; locale
 						</TableRow>
 					)}
 				</TableBody>
+
 				<TableFooter>
 					{optimisticCart.cart.taxBreakdown.map((tax, idx) => (
-						<TableRow key={idx + tax.taxAmount} className="font-normal">
-							<TableCell className="hidden w-24 sm:table-cell"></TableCell>
+						<TableRow key={`tax-${idx}`}>
+							<TableCell className="hidden sm:table-cell"></TableCell>
 							<TableCell colSpan={3} className="text-right">
-								{tax.taxType.toString().toLocaleUpperCase()} {tax.taxPercentage}%
+								{tax.taxType.toString().toUpperCase()} {tax.taxPercentage}%
 							</TableCell>
 							<TableCell className="text-right">
 								<CartAmountWithSpinner total={tax.taxAmount} currency={currency} locale={locale} />
 							</TableCell>
 						</TableRow>
 					))}
+
 					<TableRow className="text-lg font-bold">
-						<TableCell className="hidden w-24 sm:table-cell"></TableCell>
+						<TableCell className="hidden sm:table-cell"></TableCell>
 						<TableCell colSpan={3} className="text-right">
 							{t("totalSummary")}
 						</TableCell>

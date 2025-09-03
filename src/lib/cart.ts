@@ -1,3 +1,4 @@
+// src/lib/cart.ts
 import { cookies } from "next/headers";
 import { safeJsonParse } from "@/lib/utils";
 

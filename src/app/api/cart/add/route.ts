@@ -1,4 +1,3 @@
-// src/app/api/cart/add/route.ts
 import * as Commerce from "commerce-kit";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
@@ -6,28 +5,36 @@ import { getCartCookieJson, setCartCookieJson } from "@/lib/cart";
 
 export const runtime = "nodejs";
 
-type AddToCartBody = { productId: string; priceId?: string };
+type AddToCartBody = {
+	productId: string;
+	priceId: string;
+	quantity?: number;
+	color?: string;
+	size?: string;
+	variant?: string;
+};
 
-// Minimal cart type we care about
 interface Cart {
 	id: string;
+	lines?: unknown[];
 	metadata?: Record<string, unknown>;
 	[key: string]: unknown;
 }
 
-// ✅ helper for filtering string-only metadata
-function isStringEntry(entry: [string, unknown]): entry is [string, string] {
-	return typeof entry[1] === "string";
-}
-
 export async function POST(req: Request) {
 	try {
-		const { productId, priceId } = (await req.json()) as AddToCartBody;
-		if (!productId) {
-			return NextResponse.json({ error: "Missing productId" }, { status: 400 });
+		const { productId, priceId, quantity = 1, color, size, variant } = (await req.json()) as AddToCartBody;
+
+		if (!productId || !priceId) {
+			return NextResponse.json({ error: "Missing productId or priceId" }, { status: 400 });
 		}
 
-		// Ensure we have a cartId (cookie → or create)
+		// ✅ Normalize metadata values
+		const normalizedColor = color?.toLowerCase().trim() ?? "";
+		const normalizedSize = size?.toLowerCase().trim() ?? "";
+		const normalizedVariant = variant?.trim() ?? "";
+
+		// ✅ Ensure cart exists
 		let cartId = (await getCartCookieJson())?.id;
 		if (!cartId) {
 			const created = (await Commerce.cartCreate()) as unknown as Cart;
@@ -35,29 +42,41 @@ export async function POST(req: Request) {
 			await setCartCookieJson({ id: cartId, linesCount: 0 });
 		}
 
-		// Add to cart (Commerce SDK returns wrapped response → cast via unknown)
-		const cart = (await Commerce.cartAdd({
+		// ✅ Always add as a new line (no composite key merging)
+		const cart = await (
+			Commerce.cartAdd as unknown as (args: {
+				cartId: string;
+				productId: string;
+				lines: {
+					price: string;
+					quantity: number;
+					metadata?: Record<string, string>;
+				}[];
+			}) => Promise<Cart>
+		)({
 			cartId,
 			productId,
-			...(priceId ? { priceId } : {}),
-		})) as unknown as Cart;
+			lines: [
+				{
+					price: priceId,
+					quantity,
+					metadata: {
+						color: normalizedColor,
+						size: normalizedSize,
+						variant: normalizedVariant,
+						// ❌ removed compositeKey so lines never merge
+					},
+				},
+			],
+		});
 
 		if (!cart?.id) {
 			return NextResponse.json({ error: "cartAdd returned no cart" }, { status: 500 });
 		}
 
-		// ✅ Safe metadata → strings only
-		const safeMeta = Object.fromEntries(Object.entries(cart.metadata ?? {}).filter(isStringEntry)) as Record<
-			string,
-			string
-		>;
-
-		await setCartCookieJson({
-			id: cart.id,
-			linesCount: Commerce.cartCount(safeMeta),
-		});
-
+		// ✅ Cache revalidation (Next.js ISR)
 		revalidateTag(`cart-${cart.id}`);
+
 		return NextResponse.json({ cart });
 	} catch (err) {
 		console.error("❌ /api/cart/add fatal", err);

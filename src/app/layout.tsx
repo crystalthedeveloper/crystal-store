@@ -6,7 +6,10 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { CartModalPage } from "@/app/(store)/cart/cart-modal";
 import { Toaster } from "@/components/ui/sonner";
+// ✅ import cart modal context + page
+import { CartModalProvider } from "@/context/cart-modal";
 import { env, publicUrl } from "@/env.mjs";
 import { IntlClientProvider } from "@/i18n/client";
 import { getLocale, getMessages, getTranslations } from "@/i18n/server";
@@ -28,10 +31,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 		<html lang={locale} className="h-full antialiased">
 			<body className="flex min-h-full flex-col">
 				<IntlClientProvider messages={messages} locale={locale}>
-					<div className="flex min-h-full flex-1 flex-col bg-white" vaul-drawer-wrapper="">
-						{children}
-					</div>
-					<Toaster position="top-center" offset={10} />
+					<CartModalProvider>
+						<div className="flex min-h-full flex-1 flex-col bg-white" vaul-drawer-wrapper="">
+							{children}
+						</div>
+
+						{/* ✅ Global CartModal mounted here */}
+						<CartModalPage />
+
+						<Toaster position="top-center" offset={10} />
+					</CartModalProvider>
 				</IntlClientProvider>
 
 				{env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (

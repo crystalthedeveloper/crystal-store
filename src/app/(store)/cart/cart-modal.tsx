@@ -1,46 +1,28 @@
 // src/app/(store)/cart/cart-modal.tsx
+"use client";
+
 import Image from "next/image";
-import { getCartFromCookiesAction } from "@/actions/cart-actions";
 import { Button } from "@/components/ui/button";
-import { getLocale, getTranslations } from "@/i18n/server";
+import { type CartLine, useCartStore } from "@/context/cart-store";
+import { useTranslations } from "@/i18n/client";
 import { formatMoney, formatProductName } from "@/lib/utils";
 import { YnsLink } from "@/ui/yns-link";
 import { CartAsideContainer } from "./cart-aside";
 
-// Minimal cart typing for local math (no commerce-kit import needed)
-type CartLike = {
-	lines: Array<{
-		quantity: number;
-		product: {
-			id: string;
-			name: string;
-			images: string[];
-			metadata: { variant?: string };
-			default_price: { unit_amount?: number; currency: string };
-		};
-	}>;
-	cart?: { client_secret?: string };
-};
-
-// Local equivalent of "calculateCartTotalNetWithoutShipping"
-function calcTotalNetWithoutShipping(cart: CartLike): number {
-	return cart.lines.reduce((sum, line) => {
-		const unit = line.product.default_price.unit_amount ?? 0;
+function calcTotalNetWithoutShipping(lines: CartLine[]): number {
+	return lines.reduce((sum, line) => {
+		const unit = line.price ?? 0;
 		return sum + unit * line.quantity;
 	}, 0);
 }
 
-export async function CartModalPage() {
-	const originalCart = (await getCartFromCookiesAction()) as CartLike | null;
+export function CartModalPage() {
+	const t = useTranslations("/cart.modal");
+	const { lines } = useCartStore();
 
-	if (!originalCart || originalCart.lines.length === 0) {
-		return null;
-	}
-
-	const currency = originalCart.lines[0]!.product.default_price.currency;
-	const total = calcTotalNetWithoutShipping(originalCart);
-	const t = await getTranslations("/cart.modal");
-	const locale = await getLocale();
+	const total = calcTotalNetWithoutShipping(lines);
+	const currency = lines[0]?.currency ?? "usd";
+	const locale = "en";
 
 	return (
 		<CartAsideContainer>
@@ -53,65 +35,78 @@ export async function CartModalPage() {
 				</div>
 
 				<div className="mt-8">
-					<ul role="list" className="-my-6 divide-y divide-neutral-200">
-						{originalCart.lines.map((line) => (
-							<li
-								key={line.product.id}
-								className="grid grid-cols-[4rem_1fr_max-content] grid-rows-[auto_auto] gap-x-4 gap-y-2 py-6"
-							>
-								{line.product.images[0] ? (
-									<div className="col-span-1 row-span-2 bg-neutral-100">
-										<Image
-											className="aspect-square rounded-md object-cover"
-											src={line.product.images[0]}
-											width={80}
-											height={80}
-											alt=""
-										/>
-									</div>
-								) : (
-									<div className="col-span-1 row-span-2" />
-								)}
+					{lines.length === 0 ? (
+						<p className="text-sm text-neutral-500">Your cart is empty.</p>
+					) : (
+						<ul role="list" className="-my-6 divide-y divide-neutral-200">
+							{lines.map((line) => {
+								// 🔑 Match CartSummaryTable: collect hoodie variant info
+								const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(
+									Boolean,
+								);
 
-								<h3 className="-mt-1 font-semibold leading-tight">
-									{formatProductName(line.product.name, line.product.metadata.variant)}
-								</h3>
-								<p className="text-sm font-medium leading-none">
-									{formatMoney({
-										amount: line.product.default_price.unit_amount ?? 0,
-										currency: line.product.default_price.currency,
-										locale,
-									})}
-								</p>
-								<p className="self-end text-sm font-medium text-muted-foreground">
-									{t("quantity", { quantity: line.quantity })}
-								</p>
-							</li>
-						))}
-					</ul>
+								return (
+									<li
+										key={`${line.id}-${line.priceId}`}
+										className="grid grid-cols-[4rem_1fr_max-content] grid-rows-[auto_auto] gap-x-4 gap-y-2 py-6"
+									>
+										{line.image ? (
+											<div className="col-span-1 row-span-2 bg-neutral-100">
+												<Image
+													className="aspect-square rounded-md object-cover"
+													src={line.image}
+													width={80}
+													height={80}
+													alt={line.name ?? ""}
+												/>
+											</div>
+										) : (
+											<div className="col-span-1 row-span-2" />
+										)}
+
+										<h3 className="-mt-1 font-semibold leading-tight">
+											{formatProductName(line.name ?? "Unknown", variantParts.join(" / "))}
+										</h3>
+
+										<p className="text-sm font-medium leading-none">
+											{formatMoney({
+												amount: line.price ?? 0,
+												currency,
+												locale,
+											})}
+										</p>
+										<p className="self-end text-sm font-medium text-muted-foreground">
+											{t("quantity", { quantity: line.quantity })}
+										</p>
+									</li>
+								);
+							})}
+						</ul>
+					)}
 				</div>
 			</div>
 
-			<div className="border-t border-neutral-200 px-4 py-6 sm:px-6">
-				<div
-					id="cart-overlay-description"
-					className="flex justify-between text-base font-medium text-neutral-900"
-				>
-					<p>{t("total")}</p>
-					<p>
-						{formatMoney({
-							amount: total,
-							currency,
-							locale,
-						})}
-					</p>
+			{lines.length > 0 && (
+				<div className="border-t border-neutral-200 px-4 py-6 sm:px-6">
+					<div
+						id="cart-overlay-description"
+						className="flex justify-between text-base font-medium text-neutral-900"
+					>
+						<p>{t("total")}</p>
+						<p>
+							{formatMoney({
+								amount: total,
+								currency,
+								locale,
+							})}
+						</p>
+					</div>
+					<p className="mt-0.5 text-sm text-neutral-500">{t("shippingAndTaxesInfo")}</p>
+					<Button asChild size="lg" className="mt-6 w-full rounded-full text-lg">
+						<YnsLink href="/cart">{t("goToPaymentButton")}</YnsLink>
+					</Button>
 				</div>
-				<p className="mt-0.5 text-sm text-neutral-500">{t("shippingAndTaxesInfo")}</p>
-				<Button asChild size="lg" className="mt-6 w-full rounded-full text-lg">
-					<YnsLink href="/cart">{t("goToPaymentButton")}</YnsLink>
-				</Button>
-			</div>
-			{/* {searchParams.add && <CartModalAddSideEffect productId={searchParams.add} />} */}
+			)}
 		</CartAsideContainer>
 	);
 }

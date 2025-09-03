@@ -75,7 +75,8 @@
 		"tailwindcss-animate": "1.0.7",
 		"trieve-ts-sdk": "0.0.122",
 		"vaul": "1.1.2",
-		"zod": "3.25.76"
+		"zod": "3.25.76",
+		"zustand": "5.0.8"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.1.3",

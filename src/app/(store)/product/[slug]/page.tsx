@@ -281,11 +281,17 @@ export default async function SingleProductPage(props: {
 							selectedColor={selectedColor}
 							selectedSize={selectedSize}
 						/>
-
 						<AddToCartButton
-							productId={product.id} // ✅ always prod_xxx
-							priceId={selectedPrice?.id} // ✅ optional price_xxx for Printful/Stripe variants
-							disabled={product.metadata.stock <= 0}
+							productId={product.id}
+							priceId={selectedPrice!.id}
+							name={product.name}
+							image={selectedPrice?.metadata?.image_url ?? product.images?.[0]}
+							price={selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? 0}
+							currency={selectedPrice?.currency ?? product.default_price?.currency ?? "cad"}
+							variant={product.metadata?.variant} // ✅ fix: product-level
+							color={selectedPrice?.metadata?.color}
+							size={selectedPrice?.metadata?.size}
+							disabled={true}
 						/>
 					</div>
 				</div>

@@ -1,3 +1,4 @@
+//	 src/ui/checkout/shipping-rates-section.tsx
 import type * as Commerce from "commerce-kit";
 import { useOptimistic, useTransition } from "react";
 import type Stripe from "stripe";

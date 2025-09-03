@@ -1,3 +1,4 @@
+// src/ui/checkout/clear-cookie-client-component.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
