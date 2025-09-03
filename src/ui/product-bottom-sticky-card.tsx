@@ -1,3 +1,4 @@
+// src/ui/product-bottom-sticky-card.tsx
 import type * as Commerce from "commerce-kit";
 import { formatMoney } from "commerce-kit/currencies";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,13 @@ export const ProductBottomStickyCard = ({
 
 				<AddToCartButton
 					productId={product.id}
+					priceId={product.default_price?.id ?? ""}
+					name={product.name}
+					image={product.images?.[0]}
+					price={product.default_price?.unit_amount ?? 0}
+					currency={product.default_price?.currency ?? "cad"}
+					variant={product.metadata?.variant}
+					// ⛔ Removed color/size because not defined at product level
 					disabled={product.metadata.stock <= 0}
 					className="px-3 text-sm sm:text-lg sm:px-8 shrink-0 h-9 sm:h-10"
 				/>
