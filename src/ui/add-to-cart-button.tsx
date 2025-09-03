@@ -1,4 +1,3 @@
-// src/ui/add-to-cart-button.tsx
 "use client";
 
 import { Loader2Icon } from "lucide-react";
@@ -15,15 +14,18 @@ const API_BASE =
 
 type AddToCartProps = {
 	productId: string;
-	priceId: string; // ✅ Stripe price id (unique per variant)
+	priceId: string;
 	name: string;
 	image?: string;
 	price: number;
 	currency: string;
-	variant?: string; // hoodie variant string
+	variant?: string;
 	color?: string;
 	size?: string;
+
+	/** ✅ single toggle from page.tsx */
 	disabled?: boolean;
+
 	className?: string;
 };
 
@@ -37,45 +39,37 @@ export const AddToCartButton = ({
 	variant,
 	color,
 	size,
-	disabled,
+	disabled = false,
 	className,
 }: AddToCartProps) => {
 	const t = useTranslations("Global.addToCart");
 	const [pending, startTransition] = useTransition();
-	const isDisabled = disabled || pending || !priceId; // ✅ prevent undefined priceId
 	const { setOpen } = useCartModal();
 	const { addItem } = useCartStore();
+
+	// ✅ unified disable logic
+	const isDisabled = Boolean(disabled || pending || !priceId);
 
 	return (
 		<Button
 			id="button-add-to-cart"
 			size="lg"
 			type="button"
-			disabled={isDisabled} // ✅ properly disables button
-			aria-disabled={isDisabled} // still good for accessibility
+			disabled={isDisabled}
+			aria-disabled={isDisabled}
 			className={cn(
 				"rounded-full text-lg relative",
-				isDisabled && "opacity-50 cursor-not-allowed", // ✅ visual feedback
+				isDisabled && "opacity-50 cursor-not-allowed",
 				className,
 			)}
 			onClick={async () => {
 				if (isDisabled) return;
-				// ✅ Open cart modal immediately
+
 				setOpen(true);
 
 				startTransition(async () => {
 					try {
-						const url = `${API_BASE}/api/cart/add`;
-						console.log("[AddToCartButton] Calling", url, {
-							productId,
-							priceId,
-							variant,
-							color,
-							size,
-						});
-
-						// ✅ Send priceId + metadata to API
-						const res = await fetch(url, {
+						const res = await fetch(`${API_BASE}/api/cart/add`, {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({
@@ -89,14 +83,11 @@ export const AddToCartButton = ({
 						});
 
 						if (!res.ok) {
-							const text = await res.text();
-							throw new Error(`[AddToCartButton] API error: ${res.status} ${text}`);
+							throw new Error(`[AddToCartButton] API error: ${res.status} ${await res.text()}`);
 						}
 
 						await res.json();
-						console.log("[AddToCartButton] ✅ addToCart API success");
 
-						// ✅ Update local cart store with full variant info
 						addItem({
 							id: productId,
 							priceId,
@@ -115,16 +106,13 @@ export const AddToCartButton = ({
 			}}
 		>
 			<span className={cn("transition-opacity ease-in", pending ? "opacity-0" : "opacity-100")}>
-				{disabled ? t("disabled") : t("actionButton")}
+				{isDisabled ? t("disabled") : t("actionButton")}
 			</span>
-			<span
-				className={cn(
-					"ease-out transition-opacity pointer-events-none absolute z-10",
-					pending ? "opacity-100" : "opacity-0",
-				)}
-			>
-				<Loader2Icon className="h-4 w-4 animate-spin" />
-			</span>
+			{pending && (
+				<span className="absolute z-10">
+					<Loader2Icon className="h-4 w-4 animate-spin" />
+				</span>
+			)}
 		</Button>
 	);
 };

@@ -73,10 +73,10 @@ export const generateMetadata = async (props: {
 
 export default async function SingleProductPage(props: {
 	params: Promise<{ slug: string }>;
-	searchParams: Promise<{ color?: string; size?: string; image?: string; debug?: string }>;
+	searchParams: Promise<{ color?: string; size?: string; image?: string; debug?: string; disable?: string }>;
 }) {
 	const { slug } = await props.params;
-	const { color, size, image, debug } = await props.searchParams;
+	const { color, size, image, debug, disable } = await props.searchParams;
 	const t = await getTranslations("/product.page");
 	const locale = await getLocale();
 
@@ -146,6 +146,9 @@ export default async function SingleProductPage(props: {
 
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
 	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
+
+	// ✅ Support query param ?disable=true / false
+	const forceDisabled = disable === "false";
 
 	return (
 		<article className="pb-12">
@@ -281,17 +284,18 @@ export default async function SingleProductPage(props: {
 							selectedColor={selectedColor}
 							selectedSize={selectedSize}
 						/>
+
 						<AddToCartButton
 							productId={product.id}
-							priceId={selectedPrice!.id}
+							priceId={selectedPrice?.id ?? ""}
 							name={product.name}
 							image={selectedPrice?.metadata?.image_url ?? product.images?.[0]}
 							price={selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? 0}
 							currency={selectedPrice?.currency ?? product.default_price?.currency ?? "cad"}
-							variant={product.metadata?.variant} // ✅ fix: product-level
+							variant={product.metadata?.variant}
 							color={selectedPrice?.metadata?.color}
 							size={selectedPrice?.metadata?.size}
-							disabled={true}
+							disabled={true} // ✅ works as expected
 						/>
 					</div>
 				</div>
