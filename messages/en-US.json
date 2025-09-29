@@ -53,6 +53,7 @@
 	"/product.page.variantTitle": "Variant",
 	"/category.metadata.title": "{categoryName} Category · Your Next Store",
 	"/category.page.title": "Category",
+	"/cart.modal.description": "Review your items before checkout.",
 	"/cart.modal.title": "Shopping Cart",
 	"/cart.modal.openFullView": "(open full view)",
 	"/cart.modal.quantity": "Quantity: {quantity}",

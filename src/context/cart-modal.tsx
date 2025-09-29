@@ -1,3 +1,4 @@
+// src/context/cart-modal.tsx
 "use client";
 
 import { usePathname } from "next/navigation";
