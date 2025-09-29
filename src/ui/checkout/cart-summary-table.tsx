@@ -27,7 +27,7 @@ type CartLineWithPrice = Commerce.Cart["lines"][number] & {
 		currency: string;
 		metadata?: Record<string, string>;
 	};
-	metadata?: Record<string, string>; // ✅ add this so TS knows about metadata
+	metadata?: Record<string, string>;
 };
 
 // helper to normalize strings
@@ -35,16 +35,11 @@ function norm(v?: string) {
 	return (v ?? "").toLowerCase().trim();
 }
 
-// 🔑 Unique row key: product + variant metadata
-// 🔑 Unique row key: product + price + variant metadata
+// 🔑 Unique row key: product + priceId + variant metadata
 function getLineKey(line: CartLineWithPrice) {
 	const priceId = line.price?.id ?? line.product.default_price?.id ?? "noprice";
-
-	// ✅ Always use normalized metadata from `price.metadata`
 	const color = norm(line.price?.metadata?.color) || "nocolor";
 	const size = norm(line.price?.metadata?.size) || "nosize";
-
-	// Variant only comes from product-level metadata
 	const variant = norm(line.product.metadata?.variant as string | undefined) || "novariant";
 
 	return `${line.product.id}-${priceId}-${color}-${size}-${variant}`;
@@ -67,6 +62,7 @@ export const CartSummaryTable = ({ cart, locale }: { cart: Commerce.Cart; locale
 			},
 		): Commerce.Cart => {
 			const modifier = action.action === "INCREASE" ? 1 : -1;
+
 			return {
 				...prevCart,
 				lines: prevCart.lines.map((line) => {
@@ -123,10 +119,10 @@ export const CartSummaryTable = ({ cart, locale }: { cart: Commerce.Cart; locale
 						const unitAmount = price.unit_amount ?? 0;
 						const lineCurrency = price.currency ?? "usd";
 
-						const color = norm(l.metadata?.color) || norm(price.metadata?.color);
-						const size = norm(l.metadata?.size) || norm(price.metadata?.size);
-						const variant =
-							norm(l.metadata?.variant) || norm(l.product.metadata?.variant as string | undefined);
+						// ✅ Always resolve variant parts from price metadata
+						const color = norm(price.metadata?.color);
+						const size = norm(price.metadata?.size);
+						const variant = norm(l.product.metadata?.variant as string | undefined);
 
 						const rowKey = getLineKey(l);
 						const variantParts = [color, size, variant].filter(Boolean);

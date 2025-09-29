@@ -62,8 +62,6 @@ export const ProductBottomStickyCard = ({
 					price={product.default_price?.unit_amount ?? 0}
 					currency={product.default_price?.currency ?? "cad"}
 					variant={product.metadata?.variant}
-					// ⛔ Removed color/size because not defined at product level
-					disabled={true}
 					className="px-3 text-sm sm:text-lg sm:px-8 shrink-0 h-9 sm:h-10"
 				/>
 			</div>

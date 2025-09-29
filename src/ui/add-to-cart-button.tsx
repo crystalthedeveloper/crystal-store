@@ -1,3 +1,4 @@
+// src/ui/add-to-cart-button.tsx
 "use client";
 
 import { Loader2Icon } from "lucide-react";
@@ -22,10 +23,6 @@ type AddToCartProps = {
 	variant?: string;
 	color?: string;
 	size?: string;
-
-	/** ✅ single toggle from page.tsx */
-	disabled?: boolean;
-
 	className?: string;
 };
 
@@ -39,7 +36,6 @@ export const AddToCartButton = ({
 	variant,
 	color,
 	size,
-	disabled = false,
 	className,
 }: AddToCartProps) => {
 	const t = useTranslations("Global.addToCart");
@@ -47,8 +43,8 @@ export const AddToCartButton = ({
 	const { setOpen } = useCartModal();
 	const { addItem } = useCartStore();
 
-	// ✅ unified disable logic
-	const isDisabled = Boolean(disabled || pending || !priceId);
+	// ✅ disable only if loading or no priceId
+	const isDisabled = Boolean(pending || !priceId);
 
 	return (
 		<Button

@@ -1,5 +1,6 @@
 // src/ui/login-form.tsx
 "use client";
+import Link from "next/link"; // ✅ Add this import
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,15 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							Login
 						</Button>
 					</form>
+
+					{/* ✅ Add signup button below login */}
+					<div className="mt-4 text-center">
+						<Link href="https://www.crystalthedeveloper.ca/user-pages/signup" passHref>
+							<Button variant="outline" className="w-full">
+								Sign Up
+							</Button>
+						</Link>
+					</div>
 				</CardContent>
 			</Card>
 

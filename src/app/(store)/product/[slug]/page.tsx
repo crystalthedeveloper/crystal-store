@@ -295,7 +295,6 @@ export default async function SingleProductPage(props: {
 							variant={product.metadata?.variant}
 							color={selectedPrice?.metadata?.color}
 							size={selectedPrice?.metadata?.size}
-							disabled={true} // ✅ works as expected
 						/>
 					</div>
 				</div>
