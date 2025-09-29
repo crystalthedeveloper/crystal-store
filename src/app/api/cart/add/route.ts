@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 		const normalizedSize = size?.toLowerCase().trim() ?? "";
 		const normalizedVariant = variant?.trim() ?? "";
 
-		// ✅ Ensure cart exists
+		// ✅ Ensure cartId
 		let cartId = (await getCartCookieJson())?.id;
 		if (!cartId) {
 			const created = (await Commerce.cartCreate()) as unknown as Cart;
@@ -43,33 +43,51 @@ export async function POST(req: Request) {
 			await setCartCookieJson({ id: cartId, linesCount: 0 });
 		}
 
-		// ✅ Always add as a new line (no composite key merging)
-		const cart = await (
-			Commerce.cartAdd as unknown as (args: {
-				cartId: string;
-				productId: string;
-				lines: {
-					price: string;
-					quantity: number;
-					metadata?: Record<string, string>;
-				}[];
-			}) => Promise<Cart>
-		)({
-			cartId,
-			productId,
-			lines: [
-				{
-					price: priceId,
-					quantity,
-					metadata: {
-						color: normalizedColor,
-						size: normalizedSize,
-						variant: normalizedVariant,
-						// ❌ removed compositeKey so lines never merge
+		// Helper to add to cart
+		const tryAddToCart = async (id: string) =>
+			(
+				Commerce.cartAdd as unknown as (args: {
+					cartId: string;
+					productId: string;
+					lines: {
+						price: string;
+						quantity: number;
+						metadata?: Record<string, string>;
+					}[];
+				}) => Promise<Cart>
+			)({
+				cartId: id,
+				productId,
+				lines: [
+					{
+						price: priceId,
+						quantity,
+						metadata: {
+							color: normalizedColor,
+							size: normalizedSize,
+							variant: normalizedVariant,
+						},
 					},
-				},
-			],
-		});
+				],
+			});
+
+		// ✅ Try adding; recover if "Cart not found"
+		let cart: Cart | null = null;
+		try {
+			cart = await tryAddToCart(cartId);
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : JSON.stringify(err);
+
+			if (message.includes("Cart not found")) {
+				console.warn("⚠️ Cart not found, creating a new one…");
+				const created = (await Commerce.cartCreate()) as unknown as Cart;
+				cartId = created.id;
+				await setCartCookieJson({ id: cartId, linesCount: 0 });
+				cart = await tryAddToCart(cartId);
+			} else {
+				throw err; // rethrow other errors
+			}
+		}
 
 		if (!cart?.id) {
 			return NextResponse.json({ error: "cartAdd returned no cart" }, { status: 500 });
@@ -79,7 +97,7 @@ export async function POST(req: Request) {
 		revalidateTag(`cart-${cart.id}`);
 
 		return NextResponse.json({ cart });
-	} catch (err) {
+	} catch (err: unknown) {
 		console.error("❌ /api/cart/add fatal", err);
 		return NextResponse.json(
 			{
