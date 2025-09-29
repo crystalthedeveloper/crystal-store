@@ -34,5 +34,12 @@ export async function getCartCookieJson(): Promise<null | CartCookieJson> {
 	) {
 		return null;
 	}
+
+	// 🔒 Optional safeguard: ensure ID looks like a Commerce-Kit cart ID
+	if (!cartCookieJson.id.startsWith("cart_")) {
+		console.warn("Ignoring invalid cart cookie id:", cartCookieJson.id);
+		return null;
+	}
+
 	return cartCookieJson as CartCookieJson;
 }
