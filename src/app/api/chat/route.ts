@@ -2,7 +2,6 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
-import { addToCartAction } from "@/actions/cart-actions";
 import { searchProducts } from "@/lib/search/search";
 
 // ✅ Force Node.js runtime (supabase, stripe, etc. require Node APIs)
@@ -36,29 +35,8 @@ export async function POST(req: Request) {
 							const products = await searchProducts(query);
 							return products.slice(0, 4);
 						} catch (err) {
-							console.error("Product search error:", err);
+							console.error("❌ Product search error:", err);
 							return [];
-						}
-					},
-				}),
-				cartAdd: tool({
-					description: "Add a product to the cart by id",
-					inputSchema: z.object({
-						id: z.string(),
-					}),
-					execute: async ({ id }) => {
-						try {
-							const formData = new FormData();
-							formData.append("productId", id);
-
-							const cart = await addToCartAction(formData);
-							if (cart) {
-								return `✅ Product added to cart. Cart ID: ${cart.id}`;
-							}
-							return "❌ Failed to add product to cart";
-						} catch (err) {
-							console.error("Cart add error:", err);
-							return "❌ Error adding product to cart";
 						}
 					},
 				}),
@@ -67,7 +45,7 @@ export async function POST(req: Request) {
 
 		return result.toUIMessageStreamResponse();
 	} catch (error) {
-		console.error("Chat API error:", error instanceof Error ? error.message : error);
+		console.error("❌ Chat API error:", error instanceof Error ? error.message : error);
 		return new Response("Internal Server Error", { status: 500 });
 	}
 }

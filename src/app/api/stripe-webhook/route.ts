@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 	const stripe = Commerce.provider({
 		secretKey: stripeSecret,
 		cache: "no-store",
-		tagPrefix: undefined, // ✅ required by type, even if not used
+		tagPrefix: undefined,
 	});
 
 	let event: Stripe.Event;
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 					expand: ["data.price.product"],
 				})) as Stripe.ApiList<Stripe.LineItem>;
 
-				// 🔑 Save slug instead of productName
+				// 🔑 Save slug summary for record keeping
 				const summary = lineItems.data
 					.map((li) => {
 						const product = li.price?.product as Stripe.Product;
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 					});
 				}
 
-				// ✅ Optional: sync Printful
+				// ✅ Sync Printful (only if apparel)
 				if (env.PRINTFUL_API_KEY) {
 					const candidates = await Promise.all(
 						(lineItems.data ?? []).map(async (item: Stripe.LineItem) => {
@@ -83,18 +83,33 @@ export async function POST(req: Request) {
 							const productObj =
 								typeof price?.product === "object" ? (price.product as Stripe.Product) : undefined;
 
-							const category = String(productObj?.metadata?.category ?? "").toLowerCase();
+							const category = (productObj?.metadata?.category ?? "").toString().toLowerCase();
 							if (category !== "apparel") return null;
 
-							const syncIdRaw = price?.metadata?.sync_variant_id ?? productObj?.metadata?.sync_variant_id;
+							// ✅ Variant-level ID (preferred)
+							let syncIdRaw =
+								price?.metadata?.printful_sync_variant_id ?? price?.metadata?.sync_variant_id ?? null;
+
+							// ✅ Fallback: product-level ID
+							if (!syncIdRaw) {
+								syncIdRaw =
+									productObj?.metadata?.printful_sync_product_id ??
+									productObj?.metadata?.sync_variant_id ??
+									null;
+							}
+
 							const syncIdNum = Number(syncIdRaw);
 							if (!Number.isFinite(syncIdNum)) return null;
 
-							// Verify variant exists
+							// ✅ Verify variant exists in Printful
 							const ok = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
 								headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
 							}).then((r) => r.ok);
-							if (!ok) return null;
+
+							if (!ok) {
+								console.warn(`⚠️ Printful variant ${syncIdNum} not found`);
+								return null;
+							}
 
 							return { sync_variant_id: syncIdNum, quantity: item.quantity ?? 1 } as PrintfulItem;
 						}),
@@ -107,6 +122,7 @@ export async function POST(req: Request) {
 							typeof session.payment_intent === "string"
 								? session.payment_intent
 								: session.payment_intent?.id;
+
 						let shipping: Stripe.PaymentIntent["shipping"] = null;
 						if (piId) {
 							const pi = (await stripe.paymentIntents.retrieve(piId)) as Stripe.PaymentIntent;
@@ -124,7 +140,7 @@ export async function POST(req: Request) {
 							email: session.customer_details?.email ?? "no-reply@example.com",
 						};
 
-						await fetch("https://api.printful.com/orders", {
+						const res = await fetch("https://api.printful.com/orders", {
 							method: "POST",
 							headers: {
 								Authorization: `Bearer ${env.PRINTFUL_API_KEY}`,
@@ -134,9 +150,15 @@ export async function POST(req: Request) {
 								external_id: session.id,
 								recipient,
 								items,
-								confirm: true,
+								confirm: false, // leave draft for testing
 							}),
 						});
+
+						if (!res.ok) {
+							console.error("❌ Printful error:", await res.text());
+						} else {
+							console.log("✅ Printful order created in draft mode");
+						}
 					}
 				}
 				break;
@@ -158,8 +180,11 @@ export async function POST(req: Request) {
 				for (const { product } of products) {
 					if (product && product.metadata?.stock !== Infinity) {
 						const current = Number(product.metadata?.stock ?? 0);
+
+						const quantity = Number(meta[`prod_${product.id}`] ?? 1);
+
 						await stripe.products.update(product.id, {
-							metadata: { stock: String(Math.max(0, current - 1)) },
+							metadata: { stock: String(Math.max(0, current - quantity)) },
 						});
 						revalidateTag(`product-${product.id}`);
 					}

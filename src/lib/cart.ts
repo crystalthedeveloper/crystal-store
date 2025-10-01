@@ -1,45 +1,35 @@
 // src/lib/cart.ts
-import { cookies } from "next/headers";
-import { safeJsonParse } from "@/lib/utils";
+"use client";
 
-export const CART_COOKIE = "yns_cart";
+import type { CartLine } from "@/context/cart-store";
 
-export type CartCookieJson = { id: string; linesCount: number };
+const STORAGE_KEY = "local_cart";
 
-export async function setCartCookieJson(cartCookieJson: CartCookieJson) {
+// ✅ Load cart from localStorage
+export function loadCart(): CartLine[] {
 	try {
-		(await cookies()).set(CART_COOKIE, JSON.stringify(cartCookieJson));
-	} catch (error) {
-		console.error("Failed to set cart cookie", error);
+		const raw = localStorage.getItem(STORAGE_KEY);
+		return raw ? (JSON.parse(raw) as CartLine[]) : [];
+	} catch (err) {
+		console.error("❌ Failed to load cart from localStorage", err);
+		return [];
 	}
 }
 
-export async function clearCartCookie(): Promise<void> {
-	(await cookies()).set(CART_COOKIE, "", {
-		maxAge: 0,
-	});
+// ✅ Save cart to localStorage
+export function saveCart(cart: CartLine[]): void {
+	try {
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+	} catch (err) {
+		console.error("❌ Failed to save cart to localStorage", err);
+	}
 }
 
-export async function getCartCookieJson(): Promise<null | CartCookieJson> {
-	const cookiesValue = await cookies();
-	const cartCookieJson = safeJsonParse(cookiesValue.get(CART_COOKIE)?.value);
-
-	if (
-		!cartCookieJson ||
-		typeof cartCookieJson !== "object" ||
-		!("id" in cartCookieJson) ||
-		!("linesCount" in cartCookieJson) ||
-		typeof cartCookieJson.id !== "string" ||
-		typeof cartCookieJson.linesCount !== "number"
-	) {
-		return null;
+// ✅ Clear cart
+export function clearCart(): void {
+	try {
+		localStorage.removeItem(STORAGE_KEY);
+	} catch (err) {
+		console.error("❌ Failed to clear cart", err);
 	}
-
-	// 🔒 Optional safeguard: ensure ID looks like a Commerce-Kit cart ID
-	if (!cartCookieJson.id.startsWith("cart_")) {
-		console.warn("Ignoring invalid cart cookie id:", cartCookieJson.id);
-		return null;
-	}
-
-	return cartCookieJson as CartCookieJson;
 }

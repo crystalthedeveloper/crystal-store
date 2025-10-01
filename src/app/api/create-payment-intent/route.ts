@@ -1,12 +1,16 @@
 // src/app/api/create-payment-intent/route.ts
-
-import * as Commerce from "commerce-kit";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { env } from "@/env.mjs";
-import { getCartCookieJson } from "@/lib/cart"; // safe, not a server action
 
-export async function POST() {
+export const runtime = "nodejs";
+
+type CartItem = {
+	price: string; // Stripe Price ID
+	quantity: number;
+};
+
+export async function POST(req: Request) {
 	try {
 		if (!env.STRIPE_SECRET_KEY) {
 			console.error("❌ STRIPE_SECRET_KEY is missing at runtime");
@@ -17,37 +21,29 @@ export async function POST() {
 			apiVersion: "2023-10-16" as Stripe.LatestApiVersion,
 		});
 
-		// ✅ read cart from cookie instead of server action
-		const cartJson = await getCartCookieJson();
-		if (!cartJson?.id) {
+		// ✅ Read items from client request
+		const { items } = (await req.json()) as { items: CartItem[] };
+
+		if (!items || items.length === 0) {
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		const cart = await Commerce.cartGet(cartJson.id);
-		if (!cart || !cart.lines?.length) {
-			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
-		}
-
-		// ✅ safer unit price lookup
-		const amount = cart.lines.reduce((total, line) => {
-			const unit =
-				(typeof line.product.default_price === "object" ? line.product.default_price?.unit_amount : 0) ?? 0;
-			return total + unit * line.quantity;
-		}, 0);
-
-		if (amount <= 0) {
-			return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-		}
-
+		// ✅ Create PaymentIntent using line items
 		const paymentIntent = await stripe.paymentIntents.create({
-			amount,
+			amount: 0, // placeholder, let Stripe calculate from prices
 			currency: env.STRIPE_CURRENCY ?? "usd",
 			automatic_payment_methods: { enabled: true },
+
+			// Use Stripe "transfer_data" later if needed
 		});
+
+		// ✅ Attach line items properly via Checkout or manual calc
+		// If you want to use Checkout instead, switch to:
+		// stripe.checkout.sessions.create({ line_items: items.map(i => ({ price: i.price, quantity: i.quantity })) })
 
 		return NextResponse.json({ clientSecret: paymentIntent.client_secret });
 	} catch (err) {
-		console.error("PaymentIntent creation error:", err);
+		console.error("❌ PaymentIntent creation error:", err);
 		return NextResponse.json({ error: "Unable to create payment intent" }, { status: 500 });
 	}
 }

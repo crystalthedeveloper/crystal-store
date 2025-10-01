@@ -3,77 +3,28 @@
 
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useRef } from "react";
-import { useFormStatus } from "react-dom";
-import { setQuantity } from "@/actions/cart-actions";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/utils";
 
+// ✅ Local-only cart quantity controls
 export const CartItemQuantity = ({
 	quantity,
-	productId,
-	cartId,
+	priceId,
 	onChange,
 }: {
 	quantity: number;
-	productId: string;
-	cartId: string;
-	onChange: (args: { productId: string; action: "INCREASE" | "DECREASE" }) => void;
+	priceId: string;
+	onChange: (args: { priceId: string; action: "INCREASE" | "DECREASE" }) => void;
 }) => {
-	const { pending } = useFormStatus();
-	const router = useRouter();
-
-	const stateRef = useRef<{
-		timer: ReturnType<typeof setTimeout> | null;
-		promise: PromiseWithResolvers<void>;
-	}>(null);
-
-	const isPending = pending && stateRef.current !== null;
-
-	const formAction = async (action: "INCREASE" | "DECREASE") => {
-		onChange({ productId, action });
-
-		const doWork = async () => {
-			try {
-				const modifier = action === "INCREASE" ? 1 : -1;
-				await setQuantity({ cartId, productId, quantity: quantity + modifier });
-				// ✅ No more elements?.fetchUpdates()
-				router.refresh();
-				stateRef.current?.promise.resolve();
-			} catch (error) {
-				stateRef.current?.promise.reject(error);
-			} finally {
-				stateRef.current = null;
-			}
-		};
-
-		if (stateRef.current) {
-			clearTimeout(stateRef.current.timer ?? undefined);
-			stateRef.current.timer = setTimeout(doWork, 400);
-		} else {
-			stateRef.current = {
-				timer: setTimeout(doWork, 400),
-				promise: Promise.withResolvers(),
-			};
-		}
-		return stateRef.current.promise.promise;
-	};
-
 	return (
-		<span
-			className={clsx(
-				"flex flex-row items-center",
-				isPending ? "cursor-wait text-foreground/50" : "text-foreground",
-			)}
-		>
+		<span className="flex flex-row items-center text-foreground">
 			<Button
 				variant="ghost"
 				size="sm"
-				type="submit"
+				type="button"
 				disabled={quantity <= 0}
 				className="group aspect-square p-0"
-				formAction={() => formAction("DECREASE")}
+				onClick={() => onChange({ priceId, action: "DECREASE" })}
 			>
 				<span className="flex h-4 w-4 items-center justify-center rounded-full bg-neutral-100 pb-0.5 font-bold leading-none text-black transition-colors group-hover:bg-neutral-500 group-hover:text-white">
 					–
@@ -83,9 +34,9 @@ export const CartItemQuantity = ({
 			<Button
 				variant="ghost"
 				size="sm"
-				type="submit"
+				type="button"
 				className="group aspect-square p-0"
-				formAction={() => formAction("INCREASE")}
+				onClick={() => onChange({ priceId, action: "INCREASE" })}
 			>
 				<span className="flex h-4 w-4 items-center justify-center rounded-full bg-neutral-100 pb-0.5 font-bold leading-none text-black transition-colors group-hover:bg-neutral-500 group-hover:text-white">
 					+
@@ -95,31 +46,20 @@ export const CartItemQuantity = ({
 	);
 };
 
+// ✅ Line total = unit × qty
 export const CartItemLineTotal = ({
-	currency,
-	quantity,
 	unitAmount,
-	productId,
+	quantity,
+	currency,
 	locale,
 }: {
 	unitAmount: number;
 	quantity: number;
 	currency: string;
-	productId: string;
 	locale: string;
 }) => {
-	const { pending, data: formData } = useFormStatus();
-	const increaseQuantity = formData?.get("increaseQuantity")?.toString();
-	const decreaseQuantity = formData?.get("decreaseQuantity")?.toString();
-	const isPending = pending && (increaseQuantity === productId || decreaseQuantity === productId);
-
 	return (
-		<span
-			className={clsx(
-				"whitespace-nowrap tabular-nums",
-				isPending ? "cursor-wait text-foreground/50" : "text-foreground",
-			)}
-		>
+		<span className="whitespace-nowrap tabular-nums text-foreground">
 			{formatMoney({
 				amount: unitAmount * quantity,
 				currency,
@@ -129,17 +69,18 @@ export const CartItemLineTotal = ({
 	);
 };
 
+// ✅ Subtotal with spinner (optional pending state)
 export const CartAmountWithSpinner = ({
 	total,
 	currency,
 	locale,
+	pending = false,
 }: {
 	total: number;
 	currency: string;
 	locale: string;
+	pending?: boolean;
 }) => {
-	const { pending } = useFormStatus();
-
 	return (
 		<span
 			className={clsx(

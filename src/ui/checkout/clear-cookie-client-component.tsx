@@ -3,25 +3,23 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect } from "react";
-import { clearCartCookieAction } from "@/actions/cart-actions";
 
-// if current order cartId is the same as the cookie, clear the cookie
-export const ClearCookieClientComponent = ({
-	cartId,
-	cookieId,
-}: {
-	cartId: string;
-	cookieId: string | undefined;
-}) => {
+// ✅ Clear client-side cart after purchase
+export const ClearCookieClientComponent = () => {
 	const router = useRouter();
 
-	const isSameCart = cartId === cookieId;
 	useEffect(() => {
-		startTransition(async () => {
-			await clearCartCookieAction();
+		startTransition(() => {
+			// Remove cart from localStorage
+			localStorage.removeItem("localCart");
+
+			// Optional: if you keep other state keys, clear them too
+			// localStorage.removeItem("checkoutSessionId");
+
+			// Refresh page so UI re-renders as empty cart
 			router.refresh();
 		});
-	}, [isSameCart, router]);
+	}, [router]);
 
 	return null;
 };

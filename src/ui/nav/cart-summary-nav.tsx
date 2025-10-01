@@ -1,9 +1,10 @@
-import { calculateCartTotalNetWithoutShipping } from "commerce-kit";
+// src/ui/nav/cart-summary-nav.tsx
+"use client";
+
 import { ShoppingBagIcon } from "lucide-react";
-import { Suspense } from "react";
-import { getCartFromCookiesAction } from "@/actions/cart-actions";
+import { useEffect, useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getLocale, getTranslations } from "@/i18n/server";
+import { useCartStore } from "@/context/cart-store";
 import { formatMoney } from "@/lib/utils";
 import { CartLink } from "./cart-link";
 
@@ -14,26 +15,26 @@ const CartFallback = () => (
 );
 
 export const CartSummaryNav = () => {
-	return (
-		<Suspense fallback={<CartFallback />}>
-			<CartSummaryNavInner />
-		</Suspense>
-	);
-};
+	const cart = useCartStore((s) => s.lines);
 
-const CartSummaryNavInner = async () => {
-	const cart = await getCartFromCookiesAction();
-	if (!cart) {
-		return <CartFallback />;
-	}
-	if (!cart.lines.length) {
+	// ✅ Add mounted flag to prevent hydration mismatch
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	// Before mounted, always render fallback to match server HTML
+	if (!mounted) {
 		return <CartFallback />;
 	}
 
-	const total = calculateCartTotalNetWithoutShipping(cart);
-	const totalItems = cart.lines.reduce((acc, line) => acc + line.quantity, 0);
-	const t = await getTranslations("Global.nav.cartSummary");
-	const locale = await getLocale();
+	if (!cart.length) {
+		return <CartFallback />;
+	}
+
+	const total = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
+	const totalItems = cart.reduce((sum, line) => sum + line.quantity, 0);
+	const currency = cart[0]?.currency ?? "usd";
 
 	return (
 		<TooltipProvider>
@@ -43,24 +44,29 @@ const CartSummaryNavInner = async () => {
 						<CartLink>
 							<ShoppingBagIcon />
 							<span className="absolute bottom-0 right-0 inline-flex h-5 w-5 translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full border-2 bg-white text-center text-xs">
-								<span className="sr-only">{t("itemsInCart")}: </span>
+								<span className="sr-only">Items in cart: </span>
 								{totalItems}
 							</span>
 							<span className="sr-only">
-								{t("total")}:{" "}
+								Total:{" "}
 								{formatMoney({
 									amount: total,
-									currency: cart.cart.currency,
-									locale,
+									currency,
+									locale: "en",
 								})}
 							</span>
 						</CartLink>
 					</div>
 				</TooltipTrigger>
 				<TooltipContent side="left" sideOffset={25}>
-					<p>{t("totalItems", { count: totalItems })}</p>
+					<p>{totalItems} items</p>
 					<p>
-						{t("total")}: {formatMoney({ amount: total, currency: cart.cart.currency, locale })}
+						Total:{" "}
+						{formatMoney({
+							amount: total,
+							currency,
+							locale: "en",
+						})}
 					</p>
 				</TooltipContent>
 			</Tooltip>

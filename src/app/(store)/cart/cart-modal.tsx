@@ -21,14 +21,14 @@ export function CartModalPage() {
 	const { lines } = useCartStore();
 
 	const total = calcTotalNetWithoutShipping(lines);
-	const currency = lines[0]?.currency ?? "usd";
+	const currency = lines[0]?.currency ?? "cad";
 	const locale = "en";
 
 	return (
 		<CartAsideContainer aria-describedby="cart-description">
 			{/* Hidden description for screen readers */}
 			<p id="cart-description" className="sr-only">
-				Review your items before checkout.
+				{t("description")}
 			</p>
 
 			<div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
