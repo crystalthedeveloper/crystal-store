@@ -26,18 +26,15 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 	const updateQuantity = useCartStore((s) => s.updateQuantity);
 	const removeItem = useCartStore((s) => s.removeItem);
 
-	// ✅ Add mounted flag
+	// ✅ Prevent hydration mismatch
 	const [mounted, setMounted] = useState(false);
-	useEffect(() => {
-		setMounted(true);
-	}, []);
+	useEffect(() => setMounted(true), []);
 
 	const currency = lines[0]?.currency?.toLowerCase() ?? "usd";
 	const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
 
-	// ✅ Prevent hydration mismatch
 	if (!mounted) {
-		return <div className="relative w-full overflow-auto" />; // placeholder matches client structure
+		return <div className="relative w-full overflow-auto" />;
 	}
 
 	if (!lines.length) {
@@ -45,126 +42,202 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 	}
 
 	return (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead className="hidden w-24 sm:table-cell">
-						<span className="sr-only">{t("imageCol")}</span>
-					</TableHead>
-					<TableHead>{t("productCol")}</TableHead>
-					<TableHead className="w-1/6 min-w-32">{t("priceCol")}</TableHead>
-					<TableHead className="w-1/6 min-w-32">{t("quantityCol")}</TableHead>
-					<TableHead className="w-1/6 min-w-32 text-right">{t("totalCol")}</TableHead>
-				</TableRow>
-			</TableHeader>
+		<div className="w-full">
+			{/* 🖥 Desktop Table */}
+			<div className="hidden sm:block">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-24">
+								<span className="sr-only">{t("imageCol")}</span>
+							</TableHead>
+							<TableHead>{t("productCol")}</TableHead>
+							<TableHead className="w-1/6 min-w-32">{t("priceCol")}</TableHead>
+							<TableHead className="w-1/6 min-w-32">{t("quantityCol")}</TableHead>
+							<TableHead className="w-1/6 min-w-32 text-right">{t("totalCol")}</TableHead>
+						</TableRow>
+					</TableHeader>
 
-			<TableBody>
+					<TableBody>
+						{lines.map((line: CartLine) => {
+							const lineTotal = line.price * line.quantity;
+
+							return (
+								<TableRow key={`${line.id}-${line.priceId}`}>
+									<TableCell className="w-24">
+										{line.image ? (
+											<Image
+												className="aspect-square rounded-md object-cover"
+												src={line.image}
+												width={96}
+												height={96}
+												alt={line.name}
+												priority
+											/>
+										) : (
+											<div className="w-24 h-24 rounded-md bg-neutral-100" />
+										)}
+									</TableCell>
+									<TableCell className="font-medium">
+										<YnsLink
+											className="transition-colors hover:text-muted-foreground"
+											href={`/product/${line.id}`}
+										>
+											{formatProductName(
+												line.name,
+												[line.metadata?.color, line.metadata?.size, line.variant]
+													.filter(Boolean)
+													.join(" / "),
+											)}
+										</YnsLink>
+									</TableCell>
+									<TableCell>
+										{formatMoney({ amount: line.price, currency, locale })}
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<button onClick={() => updateQuantity(line, "DECREASE")}>–</button>
+											{line.quantity}
+											<button onClick={() => updateQuantity(line, "INCREASE")}>+</button>
+											<button
+												className="ml-2 text-xs text-red-500"
+												onClick={() => removeItem(line)}
+											>
+												✕
+											</button>
+										</div>
+									</TableCell>
+									<TableCell className="text-right">
+										{formatMoney({ amount: lineTotal, currency, locale })}
+									</TableCell>
+								</TableRow>
+							);
+						})}
+					</TableBody>
+
+					<TableFooter>
+						<TableRow>
+							<TableCell />
+							<TableCell colSpan={3} className="text-right">
+								{t("subtotal")}
+							</TableCell>
+							<TableCell className="text-right">
+								<CartAmountWithSpinner total={subtotal} currency={currency} locale={locale} />
+							</TableCell>
+						</TableRow>
+						<TableRow>
+							<TableCell />
+							<TableCell colSpan={3} className="text-right">
+								{t("shipping")}
+							</TableCell>
+							<TableCell className="text-right text-muted-foreground">
+								{t("calculatedAtCheckout")}
+							</TableCell>
+						</TableRow>
+						<TableRow>
+							<TableCell />
+							<TableCell colSpan={3} className="text-right">
+								{t("taxes")}
+							</TableCell>
+							<TableCell className="text-right text-muted-foreground">
+								{t("calculatedAtCheckout")}
+							</TableCell>
+						</TableRow>
+						<TableRow className="text-lg font-bold">
+							<TableCell />
+							<TableCell colSpan={3} className="text-right">
+								{t("totalSummary")}
+							</TableCell>
+							<TableCell className="text-right">
+								<CartAmountWithSpinner total={subtotal} currency={currency} locale={locale} />
+							</TableCell>
+						</TableRow>
+					</TableFooter>
+				</Table>
+			</div>
+
+			{/* 📱 Mobile Cards */}
+			<div className="space-y-4 sm:hidden">
 				{lines.map((line: CartLine) => {
 					const lineTotal = line.price * line.quantity;
-
 					return (
-						<TableRow key={`${line.id}-${line.priceId}`}>
-							{/* Image */}
-							<TableCell className="hidden sm:table-cell sm:w-24">
-								{line.image ? (
-									<Image
-										className="aspect-square rounded-md object-cover"
-										src={line.image}
-										width={96}
-										height={96}
-										alt={line.name}
-										priority={true} // ✅ improve LCP
-									/>
-								) : (
-									<div className="w-24 h-24 rounded-md bg-neutral-100" />
-								)}
-							</TableCell>
-
-							{/* Name */}
-							<TableCell className="font-medium">
+						<div
+							key={`${line.id}-${line.priceId}`}
+							className="flex gap-3 rounded-lg border p-3 shadow-sm"
+						>
+							{line.image ? (
+								<Image
+									className="h-20 w-20 rounded-md object-cover"
+									src={line.image}
+									width={80}
+									height={80}
+									alt={line.name}
+								/>
+							) : (
+								<div className="h-20 w-20 rounded-md bg-neutral-100" />
+							)}
+							<div className="flex flex-1 flex-col justify-between">
 								<YnsLink
-									className="transition-colors hover:text-muted-foreground"
+									className="font-medium hover:text-muted-foreground"
 									href={`/product/${line.id}`}
 								>
 									{formatProductName(
 										line.name,
-										[line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean).join(" / "),
+										[line.metadata?.color, line.metadata?.size, line.variant]
+											.filter(Boolean)
+											.join(" / "),
 									)}
 								</YnsLink>
-							</TableCell>
-
-							{/* Price */}
-							<TableCell>
-								{formatMoney({
-									amount: line.price,
-									currency,
-									locale,
-								})}
-							</TableCell>
-
-							{/* Quantity controls */}
-							<TableCell>
-								<div className="flex items-center gap-2">
-									<button type="button" onClick={() => updateQuantity(line, "DECREASE")}>
+								<div className="text-sm text-muted-foreground">
+									{formatMoney({ amount: line.price, currency, locale })} × {line.quantity}
+								</div>
+								<div className="mt-1 flex items-center gap-2 text-sm">
+									<button
+										className="rounded border px-2"
+										onClick={() => updateQuantity(line, "DECREASE")}
+									>
 										–
 									</button>
 									{line.quantity}
-									<button type="button" onClick={() => updateQuantity(line, "INCREASE")}>
+									<button
+										className="rounded border px-2"
+										onClick={() => updateQuantity(line, "INCREASE")}
+									>
 										+
 									</button>
 									<button
-										type="button"
-										className="ml-2 text-xs text-red-500"
+										className="ml-auto text-xs text-red-500"
 										onClick={() => removeItem(line)}
 									>
 										✕
 									</button>
 								</div>
-							</TableCell>
-
-							{/* Line total */}
-							<TableCell className="text-right">
-								{formatMoney({ amount: lineTotal, currency, locale })}
-							</TableCell>
-						</TableRow>
+								<div className="mt-2 font-semibold">
+									{formatMoney({ amount: lineTotal, currency, locale })}
+								</div>
+							</div>
+						</div>
 					);
 				})}
-			</TableBody>
-
-			<TableFooter>
-				<TableRow>
-					<TableCell className="hidden sm:table-cell" />
-					<TableCell colSpan={3} className="text-right">
-						{t("subtotal")}
-					</TableCell>
-					<TableCell className="text-right">
+				<div className="mt-4 rounded-lg border p-3 text-sm">
+					<div className="flex justify-between">
+						<span>{t("subtotal")}</span>
 						<CartAmountWithSpinner total={subtotal} currency={currency} locale={locale} />
-					</TableCell>
-				</TableRow>
-				<TableRow>
-					<TableCell className="hidden sm:table-cell" />
-					<TableCell colSpan={3} className="text-right">
-						{t("shipping")}
-					</TableCell>
-					<TableCell className="text-right text-muted-foreground">{t("calculatedAtCheckout")}</TableCell>
-				</TableRow>
-				<TableRow>
-					<TableCell className="hidden sm:table-cell" />
-					<TableCell colSpan={3} className="text-right">
-						{t("taxes")}
-					</TableCell>
-					<TableCell className="text-right text-muted-foreground">{t("calculatedAtCheckout")}</TableCell>
-				</TableRow>
-				<TableRow className="text-lg font-bold">
-					<TableCell className="hidden sm:table-cell" />
-					<TableCell colSpan={3} className="text-right">
-						{t("totalSummary")}
-					</TableCell>
-					<TableCell className="text-right">
+					</div>
+					<div className="flex justify-between text-muted-foreground">
+						<span>{t("shipping")}</span>
+						<span>{t("calculatedAtCheckout")}</span>
+					</div>
+					<div className="flex justify-between text-muted-foreground">
+						<span>{t("taxes")}</span>
+						<span>{t("calculatedAtCheckout")}</span>
+					</div>
+					<div className="mt-2 flex justify-between font-bold">
+						<span>{t("totalSummary")}</span>
 						<CartAmountWithSpinner total={subtotal} currency={currency} locale={locale} />
-					</TableCell>
-				</TableRow>
-			</TableFooter>
-		</Table>
+					</div>
+				</div>
+			</div>
+		</div>
 	);
 };

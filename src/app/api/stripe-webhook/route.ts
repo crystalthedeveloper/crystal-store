@@ -40,32 +40,32 @@ export async function POST(req: Request) {
 	let event: Stripe.Event;
 	try {
 		event = (await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret)) as Stripe.Event;
-	} catch (err: unknown) {
-		console.error("Webhook signature verification failed:", err);
+	} catch (err) {
+		console.error("❌ Webhook signature verification failed:", err);
 		return new Response("Invalid signature", { status: 400 });
 	}
 
 	try {
 		switch (event.type) {
-			// ✅ Handle Checkout completion
+			/* ---------------- Checkout Completed ---------------- */
 			case "checkout.session.completed": {
 				const session = event.data.object as Stripe.Checkout.Session;
 
-				// Expand line items → price.product
+				// Expand line items with product metadata
 				const lineItems = (await stripe.checkout.sessions.listLineItems(session.id, {
 					expand: ["data.price.product"],
 				})) as Stripe.ApiList<Stripe.LineItem>;
 
-				// 🔑 Save slug summary for record keeping
-				const summary = lineItems.data
-					.map((li) => {
-						const product = li.price?.product as Stripe.Product;
-						const slug = product?.metadata?.slug || product?.name || li.description || "unknown";
-						return `${li.quantity}x ${slug}`;
-					})
-					.join(", ");
-
+				// Save summary into PaymentIntent metadata
 				if (session.payment_intent) {
+					const summary = lineItems.data
+						.map((li) => {
+							const product = li.price?.product as Stripe.Product;
+							const slug = product?.metadata?.slug || product?.name || li.description || "unknown";
+							return `${li.quantity}x ${slug}`;
+						})
+						.join(", ");
+
 					await stripe.paymentIntents.update(session.payment_intent as string, {
 						metadata: {
 							items: summary,
@@ -75,33 +75,35 @@ export async function POST(req: Request) {
 					});
 				}
 
-				// ✅ Sync Printful (only if apparel)
+				/* ---------------- Sync Printful Order ---------------- */
 				if (env.PRINTFUL_API_KEY) {
 					const candidates = await Promise.all(
-						(lineItems.data ?? []).map(async (item: Stripe.LineItem) => {
-							const price = item.price ?? undefined;
+						lineItems.data.map(async (item) => {
+							const price = item.price;
 							const productObj =
 								typeof price?.product === "object" ? (price.product as Stripe.Product) : undefined;
 
-							const category = (productObj?.metadata?.category ?? "").toString().toLowerCase();
+							const category = (productObj?.metadata?.category ?? "").toLowerCase();
+
+							// Skip if not apparel
 							if (category !== "apparel") return null;
 
-							// ✅ Variant-level ID (preferred)
-							let syncIdRaw =
-								price?.metadata?.printful_sync_variant_id ?? price?.metadata?.sync_variant_id ?? null;
-
-							// ✅ Fallback: product-level ID
-							if (!syncIdRaw) {
-								syncIdRaw =
-									productObj?.metadata?.printful_sync_product_id ??
-									productObj?.metadata?.sync_variant_id ??
-									null;
-							}
+							// Find Printful variant ID (first check price.metadata, then product.metadata)
+							const syncIdRaw =
+								price?.metadata?.printful_sync_variant_id ??
+								price?.metadata?.sync_variant_id ??
+								productObj?.metadata?.printful_sync_variant_id ??
+								productObj?.metadata?.printful_sync_product_id ??
+								productObj?.metadata?.sync_variant_id ??
+								null;
 
 							const syncIdNum = Number(syncIdRaw);
-							if (!Number.isFinite(syncIdNum)) return null;
+							if (!Number.isFinite(syncIdNum)) {
+								console.warn("⚠️ No valid Printful variant ID found for", item.description);
+								return null;
+							}
 
-							// ✅ Verify variant exists in Printful
+							// Verify variant exists in Printful
 							const ok = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
 								headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
 							}).then((r) => r.ok);
@@ -111,19 +113,23 @@ export async function POST(req: Request) {
 								return null;
 							}
 
-							return { sync_variant_id: syncIdNum, quantity: item.quantity ?? 1 } as PrintfulItem;
+							return {
+								sync_variant_id: syncIdNum,
+								quantity: item.quantity ?? 1,
+							} as PrintfulItem;
 						}),
 					);
 
-					const items: PrintfulItem[] = candidates.filter(Boolean) as PrintfulItem[];
+					const items = candidates.filter(Boolean) as PrintfulItem[];
 
 					if (items.length > 0) {
+						// Retrieve shipping info
 						const piId =
 							typeof session.payment_intent === "string"
 								? session.payment_intent
 								: session.payment_intent?.id;
 
-						let shipping: Stripe.PaymentIntent["shipping"] = null;
+						let shipping: Stripe.PaymentIntent["shipping"] | null = null;
 						if (piId) {
 							const pi = (await stripe.paymentIntents.retrieve(piId)) as Stripe.PaymentIntent;
 							shipping = pi.shipping ?? null;
@@ -140,6 +146,7 @@ export async function POST(req: Request) {
 							email: session.customer_details?.email ?? "no-reply@example.com",
 						};
 
+						// Send order to Printful in DRAFT mode (set confirm:true for live)
 						const res = await fetch("https://api.printful.com/orders", {
 							method: "POST",
 							headers: {
@@ -150,21 +157,21 @@ export async function POST(req: Request) {
 								external_id: session.id,
 								recipient,
 								items,
-								confirm: false, // leave draft for testing
+								confirm: false,
 							}),
 						});
 
 						if (!res.ok) {
 							console.error("❌ Printful error:", await res.text());
 						} else {
-							console.log("✅ Printful order created in draft mode");
+							console.log("✅ Printful order created (draft)", { items });
 						}
 					}
 				}
 				break;
 			}
 
-			// ✅ PaymentIntent succeeded (stock decrement)
+			/* ---------------- PaymentIntent Success ---------------- */
 			case "payment_intent.succeeded": {
 				const pi = event.data.object as Stripe.PaymentIntent;
 				const meta = toStringRecord(pi.metadata ?? {});
@@ -180,7 +187,6 @@ export async function POST(req: Request) {
 				for (const { product } of products) {
 					if (product && product.metadata?.stock !== Infinity) {
 						const current = Number(product.metadata?.stock ?? 0);
-
 						const quantity = Number(meta[`prod_${product.id}`] ?? 1);
 
 						await stripe.products.update(product.id, {
@@ -197,7 +203,7 @@ export async function POST(req: Request) {
 				console.log(`Unhandled event type: ${event.type}`);
 		}
 	} catch (err) {
-		console.error("Webhook handler error:", err);
+		console.error("❌ Webhook handler error:", err);
 		return new Response("Webhook handler error", { status: 500 });
 	}
 

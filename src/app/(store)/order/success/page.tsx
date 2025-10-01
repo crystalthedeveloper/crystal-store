@@ -90,6 +90,7 @@ export default async function OrderDetailsPage({
 										width={100}
 										height={100}
 										className="h-24 w-24 rounded-md object-cover"
+										priority
 									/>
 								)}
 

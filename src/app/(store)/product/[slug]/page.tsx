@@ -138,17 +138,32 @@ export default async function SingleProductPage(props: {
 		? [selectedPriceImage, ...baseImages.filter((i) => i !== selectedPriceImage)]
 		: baseImages;
 
-	const imageIndex = typeof image === "string" ? Number(image) : 0;
+	// ✅ Safer image index parsing
+	const imageIndex = Number.isFinite(Number(image)) ? Number(image) : 0;
 	const mainImage = images[imageIndex] ?? images[0];
 
-	const webflow = await getWebflowSelections(product, selectedPrice);
+	// ✅ Wrap Webflow fetch in try/catch with proper type
+	let webflow: Awaited<ReturnType<typeof getWebflowSelections>> = {
+		isWebflow: false,
+		links: [],
+		featurePairs: [],
+		license: "",
+	};
+	try {
+		webflow = await getWebflowSelections(product, selectedPrice);
+	} catch (err) {
+		console.warn("⚠️ Webflow data fetch failed:", err);
+	}
 	const { isWebflow, links, featurePairs, license } = webflow;
 
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
 	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
 
-	// ✅ Support query param ?disable=true / false
-	const forceDisabled = disable === "false";
+	// ✅ Fix disable flag logic
+	const forceDisabled = disable === "true";
+
+	// ✅ Parse stock safely from metadata
+	const stock = Number(product.metadata?.stock ?? Infinity);
 
 	return (
 		<article className="pb-12">
@@ -200,9 +215,7 @@ export default async function SingleProductPage(props: {
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
 								<BreadcrumbPage>
-									{[selectedColor && deslugify(selectedColor), selectedSize && deslugify(selectedSize)]
-										.filter(Boolean)
-										.join(" / ")}
+									{[selectedColor, selectedSize].filter(Boolean).join(" / ")}
 								</BreadcrumbPage>
 							</BreadcrumbItem>
 						</>
@@ -216,9 +229,7 @@ export default async function SingleProductPage(props: {
 						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
 						<PriceLabel amount={displayAmount} currency={displayCurrency} locale={locale} />
 						<div className="mt-2">
-							{typeof product.metadata.stock === "number" && product.metadata.stock <= 0 && (
-								<div>Out of stock</div>
-							)}
+							{stock <= 0 && <div>Out of stock</div>}
 						</div>
 					</div>
 
@@ -232,7 +243,7 @@ export default async function SingleProductPage(props: {
 									src={mainImage}
 									loading="eager"
 									priority
-									alt=""
+									alt={`${product.name}${selectedColor ? ` - ${selectedColor}` : ""}${selectedSize ? ` / ${selectedSize}` : ""}`}
 								/>
 							)}
 
@@ -249,9 +260,8 @@ export default async function SingleProductPage(props: {
 											width={700 / 3}
 											height={700 / 3}
 											sizes="(max-width: 1024px) 33vw, (max-width: 1280px) 20vw, 225px"
-											loading="eager"
-											priority
-											alt=""
+											loading="lazy"
+											alt={`${product.name} thumbnail ${idx + 1}${selectedColor ? ` - ${selectedColor}` : ""}${selectedSize ? ` / ${selectedSize}` : ""}`}
 										/>
 									</YnsLink>
 								);
@@ -295,6 +305,7 @@ export default async function SingleProductPage(props: {
 							variant={product.metadata?.variant}
 							color={selectedPrice?.metadata?.color}
 							size={selectedPrice?.metadata?.size}
+							disabled={forceDisabled}
 						/>
 					</div>
 				</div>

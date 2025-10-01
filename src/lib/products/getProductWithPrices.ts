@@ -27,38 +27,52 @@ export async function getProductWithPrices(
 	const product = items[0] as KitProduct;
 	const isApparel = (product.metadata?.category ?? "").toLowerCase() === "apparel";
 
+	// Start with any Commerce prices
 	let prices: KitPrice[] = Array.isArray((product as unknown as { prices: KitPrice[] }).prices)
 		? (product as unknown as { prices: KitPrice[] }).prices
 		: [];
 
-	// 🔑 Always fetch fresh Stripe prices for apparel if missing
-	if (isApparel && prices.length === 0) {
+	// 🔑 Always fetch fresh Stripe prices for apparel
+	if (isApparel) {
 		const { env } = await import("@/env.mjs");
-		const stripe = Commerce.provider({ secretKey: env.STRIPE_SECRET_KEY, tagPrefix: undefined });
-		const listed = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
+		const stripe = Commerce.provider({
+			secretKey: env.STRIPE_SECRET_KEY,
+			tagPrefix: undefined,
+		});
 
-		prices = listed.data.map((p) => ({
-			id: p.id,
-			unit_amount: p.unit_amount,
-			currency: p.currency,
-			metadata: {
-				color: p.metadata?.color ?? "",
-				size: p.metadata?.size ?? "",
-				image_url: p.metadata?.image_url ?? "",
-				...p.metadata,
-			},
-		}));
+		const listed = await stripe.prices.list({
+			product: product.id,
+			active: true,
+			limit: 100,
+		});
+
+		prices = listed.data.map(
+			(p): KitPrice => ({
+				id: p.id,
+				unit_amount: p.unit_amount,
+				currency: p.currency.toUpperCase(),
+				metadata: {
+					color: p.metadata?.color ?? "",
+					size: p.metadata?.size ?? "",
+					image_url: p.metadata?.image_url ?? "",
+					...((p.metadata ?? {}) as Record<string, string | undefined>),
+				},
+			}),
+		);
 	} else {
-		// 🔑 Normalize metadata for any prices that came back from Commerce
-		prices = prices.map((p) => ({
-			...p,
-			metadata: {
-				color: p.metadata?.color ?? "",
-				size: p.metadata?.size ?? "",
-				image_url: p.metadata?.image_url ?? "",
-				...(p.metadata ?? {}),
-			},
-		}));
+		// 🔑 Normalize metadata for any non-apparel prices from Commerce
+		prices = prices.map(
+			(p): KitPrice => ({
+				...p,
+				currency: p.currency.toUpperCase(),
+				metadata: {
+					color: p.metadata?.color ?? "",
+					size: p.metadata?.size ?? "",
+					image_url: p.metadata?.image_url ?? "",
+					...((p.metadata ?? {}) as Record<string, string | undefined>),
+				},
+			}),
+		);
 	}
 
 	return { product, prices };
