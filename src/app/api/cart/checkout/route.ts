@@ -1,9 +1,8 @@
 // src/app/api/cart/checkout/route.ts
-
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// ✅ Prevents static optimization / pre-rendering
+// ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
 
 function requireEnv(value: string | undefined, name: string): string {
@@ -24,6 +23,7 @@ export async function POST(req: Request) {
 		const { cart } = body;
 
 		const baseUrl = requireEnv(process.env.NEXT_PUBLIC_URL, "NEXT_PUBLIC_URL");
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 		const stripeSecret = requireEnv(process.env.STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY");
 
 		if (!cart || cart.length === 0) {
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 					name: item.name,
 					...(item.image && { images: [item.image] }),
 				},
-				// ensure already cents — Stripe requires integer
+				// already cents — Stripe requires integer
 				unit_amount: Math.round(item.price),
 			},
 			quantity: item.quantity,
@@ -54,8 +54,8 @@ export async function POST(req: Request) {
 			billing_address_collection: "required",
 			shipping_address_collection: { allowed_countries: ["CA", "US"] },
 			automatic_tax: { enabled: true },
-			success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-			cancel_url: `${baseUrl}/cart`,
+			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+			cancel_url: `${baseUrl}${basePath}/cart`,
 		});
 
 		if (!session.url) {
