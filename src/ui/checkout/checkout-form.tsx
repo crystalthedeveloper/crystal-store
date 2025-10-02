@@ -24,10 +24,8 @@ export default function CheckoutForm({
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	// ✅ Zustand cart lines
 	const lines = useCartStore((s) => s.lines);
 
-	// ✅ Format cart items
 	const cart = lines.map((line) => {
 		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean);
 		const displayName = formatProductName(line.name ?? "Unknown", variantParts.join(" / "));
@@ -44,19 +42,22 @@ export default function CheckoutForm({
 		setLoading(true);
 
 		try {
-			// ✅ Use relative path (avoids double /store/store issue)
-			const res = await fetch("/api/cart/checkout", {
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+			const res = await fetch(`${basePath}/api/cart/checkout`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ locale, cart }),
 			});
+
+			if (!res.ok) {
+				throw new Error(`❌ API error: ${res.status} ${await res.text()}`);
+			}
 
 			const data = (await res.json()) as CheckoutSessionResponse;
 
 			if (data.error) throw new Error(data.error);
 			if (!data.url) throw new Error("❌ Missing Checkout session URL");
 
-			// ✅ Redirect to Stripe Checkout
 			window.location.href = data.url;
 		} catch (err) {
 			console.error("❌ Checkout redirect error:", err);
