@@ -35,6 +35,8 @@ export default function CheckoutForm({
 			price: line.price,
 			quantity: line.quantity,
 			image: line.image,
+			priceId: line.priceId,
+			metadata: line.metadata ?? {},
 		};
 	});
 

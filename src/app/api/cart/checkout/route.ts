@@ -19,6 +19,8 @@ type CartItem = {
 	price: number; // already in cents
 	quantity: number;
 	image?: string;
+	priceId?: string;
+	metadata?: Record<string, string | undefined>;
 };
 
 export async function POST(req: Request) {
@@ -46,17 +48,26 @@ export async function POST(req: Request) {
 		console.log("✅ Stripe client initialized for checkout");
 
 		// ✅ Build Stripe line items
-		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
-			price_data: {
-				currency: "cad",
-				product_data: {
-					name: item.name,
-					...(item.image && { images: [item.image] }),
+		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => {
+			if (item.priceId) {
+				return {
+					price: item.priceId,
+					quantity: item.quantity,
+				};
+			}
+
+			return {
+				price_data: {
+					currency: "cad",
+					product_data: {
+						name: item.name,
+						...(item.image && { images: [item.image] }),
+					},
+					unit_amount: Math.round(item.price),
 				},
-				unit_amount: Math.round(item.price),
-			},
-			quantity: item.quantity,
-		}));
+				quantity: item.quantity,
+			};
+		});
 
 		console.log("🧾 Stripe line items:", JSON.stringify(line_items, null, 2));
 
