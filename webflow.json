@@ -3,7 +3,18 @@
         "framework": "nextjs"
     },
     "cloud": {
-        "framework": "nextjs"
+        "framework": "nextjs",
+        "routes": {
+            "/api/cart/checkout": {
+                "type": "function"
+            },
+            "/api/cart/add": {
+                "type": "function"
+            },
+            "/api/stripe-webhook": {
+                "type": "function"
+            }
+        }
     },
     "devlink": {
         "host": "https://api.webflow.com",

@@ -42,8 +42,15 @@ export default function CheckoutForm({
 		setLoading(true);
 
 		try {
-			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-			const res = await fetch(`${basePath}/api/cart/checkout`, {
+			// 🔑 Detect correct base URL
+			const origin =
+				typeof window !== "undefined"
+					? window.location.origin // runtime (local or prod)
+					: (process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000");
+
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/store"; // always /store
+
+			const res = await fetch(`${origin}${basePath}/api/cart/checkout`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ locale, cart }),

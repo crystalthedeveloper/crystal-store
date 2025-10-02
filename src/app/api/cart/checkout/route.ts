@@ -5,12 +5,9 @@ import Stripe from "stripe";
 // ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
 
-// ✅ Env loader with fallback for Webflow Cloud
+// ✅ Env loader
 function requireEnv(name: string): string {
-	const val =
-		process.env[name] ||
-		(name === "STRIPE_SECRET_KEY" ? process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY : undefined);
-
+	const val = process.env[name];
 	if (!val) throw new Error(`❌ Missing required env variable: ${name}`);
 	return val;
 }
@@ -30,22 +27,25 @@ export async function POST(req: Request) {
 		const { cart } = body;
 		console.log("🛒 Cart body:", JSON.stringify(cart, null, 2));
 
-		const baseUrl = requireEnv("NEXT_PUBLIC_URL");
-		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+		const baseUrl = requireEnv("NEXT_PUBLIC_URL"); // e.g. https://www.crystalthedeveloper.ca
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""; // e.g. /store
 		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
 
 		console.log("🌐 Base URL:", baseUrl);
 		console.log("📂 Base Path:", basePath);
-		console.log("🔑 Stripe Secret present?", !!stripeSecret);
 
 		if (!cart || cart.length === 0) {
 			console.warn("⚠️ Cart is empty!");
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		const stripe = new Stripe(stripeSecret);
-		console.log("✅ Stripe initialized");
+		// ✅ Lock to Stripe’s pinned API version
+		const stripe = new Stripe(stripeSecret, {
+			apiVersion: "2025-07-30.basil",
+		});
+		console.log("✅ Stripe initialized with version 2025-07-30.basil");
 
+		// ✅ Build Stripe line items
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
 			price_data: {
 				currency: "cad",
@@ -60,6 +60,7 @@ export async function POST(req: Request) {
 
 		console.log("🧾 Stripe line items:", JSON.stringify(line_items, null, 2));
 
+		// ✅ Create checkout session
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
 			line_items,
@@ -84,8 +85,6 @@ export async function POST(req: Request) {
 			console.error("❌ Stripe checkout error:", err.message);
 			return NextResponse.json({ error: err.message }, { status: 500 });
 		}
-
-		// handle non-Error values
 		console.error("❌ Stripe checkout unknown error:", err);
 		return NextResponse.json({ error: "Unknown error creating checkout session" }, { status: 500 });
 	}
