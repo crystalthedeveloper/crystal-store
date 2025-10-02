@@ -45,7 +45,7 @@ export default async function Home() {
 								<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
 									Shop, Style, Create — and Support the Dev
 								</h2>
-								<p className="text-pretty text-neutral-600">
+							<p className="text-pretty text-neutral-600 leading-relaxed">
 									Store preview is disabled in this environment (Stripe is not configured).
 								</p>
 
@@ -120,7 +120,7 @@ export default async function Home() {
 						<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
 							Shop, Style, Create — and Support the Dev
 						</h2>
-						<p className="text-pretty text-neutral-600">
+						<p className="text-pretty text-neutral-600 leading-relaxed">
 							Explore everything from sleek Webflow templates and innovative apps to premium eCommerce designs
 							and everyday hoodies. Your support — whether by shopping or chipping in — directly helps keep
 							the projects, creativity, and code flowing.

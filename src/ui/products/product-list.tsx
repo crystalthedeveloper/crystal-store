@@ -37,14 +37,14 @@ export const ProductList = async ({ products }: { products: NormalizedProduct[] 
 								{/* Flat text under the image */}
 								<div className="mt-2">
 									<h2 className="text-lg font-semibold text-neutral-800">{product.name}</h2>
-									<footer className="text-base font-medium text-neutral-900">
+									<footer className="text-base font-medium text-neutral-900 leading-relaxed">
 										{product.default_price.unit_amount && (
-											<p>
+											<p className="leading-relaxed">
 												{formatMoney({
 													amount: product.default_price.unit_amount,
 													currency: product.default_price.currency,
 													locale,
-												})}
+											})}
 											</p>
 										)}
 									</footer>

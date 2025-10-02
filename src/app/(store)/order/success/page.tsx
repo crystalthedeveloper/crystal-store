@@ -97,13 +97,13 @@ export default async function OrderDetailsPage({
 							<div className="flex-1">
 								<h3 className="font-semibold text-lg text-neutral-900">{line.description}</h3>
 
-								<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground">
-									<div>
-										<p className="font-medium">{t("price")}</p>
-										<p>
-											{formatMoney({
-												amount: line.price?.unit_amount ?? 0,
-												currency: line.price?.currency ?? "usd",
+					<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground leading-relaxed">
+						<div>
+							<p className="font-medium">{t("price")}</p>
+							<p className="leading-relaxed">
+								{formatMoney({
+									amount: line.price?.unit_amount ?? 0,
+									currency: line.price?.currency ?? "usd",
 												locale,
 											})}
 										</p>
@@ -112,9 +112,9 @@ export default async function OrderDetailsPage({
 										<p className="font-medium">{t("quantity")}</p>
 										<p>{line.quantity}</p>
 									</div>
-									<div>
-										<p className="font-medium">{t("total")}</p>
-										<p>
+							<div>
+								<p className="font-medium">{t("total")}</p>
+								<p className="leading-relaxed">
 											{formatMoney({
 												amount: (line.price?.unit_amount ?? 0) * (line.quantity ?? 1),
 												currency: line.price?.currency ?? "usd",
@@ -131,9 +131,9 @@ export default async function OrderDetailsPage({
 
 			<div className="col-span-2 grid grid-cols-2 gap-8 border-t pt-8">
 				<h3 className="font-semibold leading-none text-neutral-700">{t("total")}</h3>
-				<p>
-					{formatMoney({
-						amount: session.amount_total ?? 0,
+			<p className="leading-relaxed">
+				{formatMoney({
+					amount: session.amount_total ?? 0,
 						currency: session.currency ?? "usd",
 						locale,
 					})}

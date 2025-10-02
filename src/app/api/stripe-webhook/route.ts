@@ -117,6 +117,7 @@ export async function POST(req: Request) {
 					);
 
 					const items = candidates.filter(Boolean) as PrintfulItem[];
+					console.log("[printful] eligible apparel items", items);
 
 					if (items.length > 0) {
 						// Retrieve shipping info
@@ -158,9 +159,11 @@ export async function POST(req: Request) {
 						});
 
 						if (!res.ok) {
-							console.error("❌ Printful error:", await res.text());
+							const text = await res.text();
+							console.error("❌ Printful error:", res.status, text);
 						} else {
-							console.log("✅ Printful order created (draft)", { items });
+							const body = await res.json().catch(() => null);
+							console.log("✅ Printful order created (draft)", { items, response: body });
 						}
 					}
 				}
@@ -180,6 +183,7 @@ export async function POST(req: Request) {
 				}
 
 				const products = await getProductsFromMetadata(meta as Record<string, string>);
+				console.log("[webhook] updating product stock", products);
 				for (const { product } of products) {
 					const rawStock = product?.metadata?.stock;
 					const hasFiniteStock = typeof rawStock === "string" && rawStock.toLowerCase() !== "infinity";

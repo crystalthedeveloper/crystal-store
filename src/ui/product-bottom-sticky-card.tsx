@@ -53,7 +53,7 @@ export const ProductBottomStickyCard = ({
 						</h3>
 
 						{product.default_price.unit_amount && (
-							<p className="text-xs sm:text-sm">
+							<p className="text-xs sm:text-sm leading-relaxed">
 								{formatMoney({
 									amount: product.default_price.unit_amount,
 									currency: product.default_price.currency,
