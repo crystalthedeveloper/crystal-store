@@ -22,16 +22,18 @@ export async function POST(req: Request) {
 		const body = (await req.json()) as { cart?: CartItem[] };
 		const { cart } = body;
 
-		const baseUrl = requireEnv(process.env.NEXT_PUBLIC_URL, "NEXT_PUBLIC_URL");
-		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+		const baseUrl = requireEnv(process.env.NEXT_PUBLIC_URL, "NEXT_PUBLIC_URL"); // e.g. https://www.crystalthedeveloper.ca
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""; // e.g. /store
 		const stripeSecret = requireEnv(process.env.STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY");
 
 		if (!cart || cart.length === 0) {
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
+		// ✅ Safe Stripe init
 		const stripe = new Stripe(stripeSecret);
 
+		// ✅ Build Stripe line items
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
 			price_data: {
 				currency: "cad",
@@ -39,11 +41,12 @@ export async function POST(req: Request) {
 					name: item.name,
 					...(item.image && { images: [item.image] }),
 				},
-				unit_amount: Math.round(item.price), // already cents
+				unit_amount: Math.round(item.price),
 			},
 			quantity: item.quantity,
 		}));
 
+		// ✅ Create checkout session
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
 			line_items,

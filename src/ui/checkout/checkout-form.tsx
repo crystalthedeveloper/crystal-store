@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/context/cart-store";
-import { formatProductName } from "@/lib/utils"; // ✅ import same helper
+import { formatProductName } from "@/lib/utils";
 
 type CheckoutSessionResponse = {
 	url?: string;
@@ -24,12 +24,11 @@ export default function CheckoutForm({
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	// ✅ Grab lines from Zustand
+	// ✅ Zustand cart lines
 	const lines = useCartStore((s) => s.lines);
 
-	// ✅ Format cart items for Stripe
+	// ✅ Format cart items
 	const cart = lines.map((line) => {
-		// build variant string just like in modal
 		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean);
 		const displayName = formatProductName(line.name ?? "Unknown", variantParts.join(" / "));
 
@@ -45,13 +44,11 @@ export default function CheckoutForm({
 		setLoading(true);
 
 		try {
-			const baseUrl = process.env.NEXT_PUBLIC_URL!;
-			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-
-			const res = await fetch(`${baseUrl}${basePath}/api/cart/checkout`, {
+			// ✅ Use relative path (avoids double /store/store issue)
+			const res = await fetch("/api/cart/checkout", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ locale, cart }), // ✅ send enriched cart
+				body: JSON.stringify({ locale, cart }),
 			});
 
 			const data = (await res.json()) as CheckoutSessionResponse;
@@ -59,6 +56,7 @@ export default function CheckoutForm({
 			if (data.error) throw new Error(data.error);
 			if (!data.url) throw new Error("❌ Missing Checkout session URL");
 
+			// ✅ Redirect to Stripe Checkout
 			window.location.href = data.url;
 		} catch (err) {
 			console.error("❌ Checkout redirect error:", err);
