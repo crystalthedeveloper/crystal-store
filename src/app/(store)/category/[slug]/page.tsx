@@ -1,6 +1,5 @@
 // src/app/(store)/category/[slug]/page.tsx
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Stripe from "stripe";
 
 import { env, publicUrl } from "@/env.mjs";
@@ -8,6 +7,7 @@ import { getTranslations } from "@/i18n/server";
 import { deslugify } from "@/lib/utils";
 import type { NormalizedProduct } from "@/ui/json-ld";
 import { ProductList } from "@/ui/products/product-list";
+import { YnsLink } from "@/ui/yns-link";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +16,17 @@ export const revalidate = 0;
 /**
  * Build SEO metadata for a category page
  */
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+	params,
+}: {
+	params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
 	const { slug } = await params;
+	const categoryName = deslugify(slug);
 	const t = await getTranslations("/category.metadata");
 
 	const baseMeta: Metadata = {
-		title: t("title", { categoryName: deslugify(slug) }),
+		title: t("title", { categoryName }),
 		alternates: { canonical: `${publicUrl}/store/category/${slug}` },
 	};
 
@@ -37,7 +42,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 		});
 		const hasProducts = products.data.some((p) => p.metadata?.category === slug);
 
-		return hasProducts ? baseMeta : baseMeta;
+		return hasProducts
+			? baseMeta
+			: {
+				...baseMeta,
+				robots: { index: false, follow: false },
+			};
 	} catch (err) {
 		console.warn("generateMetadata: Stripe request failed", err);
 		return baseMeta;
@@ -47,8 +57,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 /**
  * Category Page
  */
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CategoryPage({
+	params,
+}: {
+	params: Promise<{ slug: string }>;
+}) {
 	const { slug } = await params;
+	const categoryName = deslugify(slug);
 	const t = await getTranslations("/category.page");
 
 	// Early return if Stripe not configured
@@ -56,9 +71,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 		return (
 			<main className="pb-8">
 				<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
-					{deslugify(slug)}
+					{categoryName}
 					<div className="text-lg font-semibold text-muted-foreground">
-						{t("title", { categoryName: deslugify(slug) })}
+						{t("title", { categoryName })}
 					</div>
 				</h1>
 				<p className="mt-4 text-sm text-muted-foreground">
@@ -96,17 +111,35 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 		console.warn("CategoryPage: Stripe fetch failed; treating as empty category.", err);
 	}
 
-	if (products.length === 0) notFound();
+	const hasProducts = products.length > 0;
 
 	return (
 		<main className="pb-8">
 			<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
-				{deslugify(slug)}
+				{categoryName}
 				<div className="text-lg font-semibold text-muted-foreground">
-					{t("title", { categoryName: deslugify(slug) })}
+					{t("title", { categoryName })}
 				</div>
 			</h1>
-			<ProductList products={products} />
+
+			{hasProducts ? (
+				<ProductList products={products} />
+			) : (
+				<section className="mt-8 space-y-4">
+					<h2 className="text-xl font-semibold leading-tight text-foreground">
+						{t("empty.title", { categoryName })}
+					</h2>
+					<p className="max-w-2xl text-sm text-muted-foreground">
+						{t("empty.description", { categoryName })}
+					</p>
+					<YnsLink
+						href="/products"
+						className="inline-flex w-fit items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+					>
+						{t("empty.cta")}
+					</YnsLink>
+				</section>
+			)}
 		</main>
 	);
 }
