@@ -30,10 +30,7 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		// ✅ Lazy Stripe init (runtime only)
-		const stripe = new Stripe(stripeSecret, {
-			apiVersion: "2025-07-30.basil",
-		});
+		const stripe = new Stripe(stripeSecret);
 
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
 			price_data: {
@@ -42,8 +39,7 @@ export async function POST(req: Request) {
 					name: item.name,
 					...(item.image && { images: [item.image] }),
 				},
-				// already cents — Stripe requires integer
-				unit_amount: Math.round(item.price),
+				unit_amount: Math.round(item.price), // already cents
 			},
 			quantity: item.quantity,
 		}));
@@ -54,7 +50,7 @@ export async function POST(req: Request) {
 			billing_address_collection: "required",
 			shipping_address_collection: { allowed_countries: ["CA", "US"] },
 			automatic_tax: { enabled: true },
-			success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${baseUrl}${basePath}/cart`,
 		});
 
