@@ -101,8 +101,13 @@ export default async function Home() {
 	try {
 		const allProducts = await productBrowse({ first: 24 });
 		products = allProducts.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0)).slice(0, 6);
+		console.log("[home] productBrowse success", {
+			total: allProducts.length,
+			selected: products.length,
+			ids: products.map((p) => p.id),
+		});
 	} catch (e) {
-		console.warn("Home: productBrowse failed; rendering without products.", e);
+		console.warn("[home] productBrowse failed; rendering without products.", e);
 	}
 
 	return (

@@ -153,7 +153,7 @@ async function findProductBySlug(stripe: Stripe, slug: string): Promise<Stripe.P
 		const results = await searchProducts(stripe, query, 1);
 		if (results[0]) return results[0];
 	} catch {
-		// fall through to manual filtering below
+		console.log("[stripe][productGet] search unsupported, falling back to manual list", { slug });
 	}
 
 	const listed = await listProducts(stripe, 100);
@@ -180,12 +180,22 @@ export async function productBrowse(params: ProductBrowseParams = {}): Promise<M
 		products = await listProducts(stripe, limit);
 	}
 
-	return Promise.all(
+	const mapped = await Promise.all(
 		products.map(async (product) => {
 			const defaultPrice = await ensureDefaultPrice(stripe, product);
 			return toMappedProduct(toKitProduct(product, defaultPrice));
 		}),
 	);
+
+	const logContext = {
+		hasFilter: Boolean(params.filter),
+		category: params.filter?.category ?? null,
+		count: mapped.length,
+		source: params.filter?.category && products.length ? (products[0] as Stripe.Product).id : null,
+	};
+	console.log("[stripe][productBrowse]", logContext);
+
+	return mapped;
 }
 
 export async function productGet(params: ProductGetParams): Promise<KitProduct[]> {

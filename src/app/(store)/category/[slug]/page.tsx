@@ -34,11 +34,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 		return products.length > 0
 			? baseMeta
 			: {
-					...baseMeta,
-					robots: { index: false, follow: false },
-				};
+				...baseMeta,
+				robots: { index: false, follow: false },
+			};
 	} catch (err) {
-		console.warn("generateMetadata: Stripe browse failed", err);
+		console.warn("[category][metadata] Stripe browse failed", err);
 		return baseMeta;
 	}
 }
@@ -92,8 +92,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 			return aOrder - bOrder;
 		});
 		products = ordered.map((product) => mapProductToNormalized(product, slug));
+		console.log("[category] products loaded", {
+			slug,
+			found: results.length,
+			ordered: products.length,
+			ids: products.map((p) => p.id),
+		});
 	} catch (err) {
-		console.warn("CategoryPage: Stripe browse failed; treating as empty category.", err);
+		console.warn("[category] Stripe browse failed; treating as empty category.", err);
 	}
 
 	const hasProducts = products.length > 0;
