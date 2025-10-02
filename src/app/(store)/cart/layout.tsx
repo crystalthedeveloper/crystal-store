@@ -24,7 +24,12 @@ export default async function CartLayout({ children }: { children: ReactNode }) 
 
 			{/* Checkout (right) */}
 			<div className="my-8 max-w-[65ch] xl:col-span-5">
-				<CheckoutForm locale={locale} title={t("checkoutTitle")} description={t("checkoutDescription")} />
+				<CheckoutForm
+					locale={locale}
+					title={t("checkoutTitle")}
+					description={t("checkoutDescription")}
+					note={t("note")}
+				/>
 				{children}
 			</div>
 		</div>

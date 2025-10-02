@@ -16,10 +16,12 @@ export default function CheckoutForm({
 	locale,
 	title,
 	description,
+	note, // ✅ add note here
 }: {
 	locale: string;
 	title: string;
 	description: string;
+	note?: string; // ✅ optional for safety
 }) {
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -44,13 +46,12 @@ export default function CheckoutForm({
 		setLoading(true);
 
 		try {
-			// 🔑 Detect correct base URL
 			const origin =
 				typeof window !== "undefined"
-					? window.location.origin // runtime (local or prod)
+					? window.location.origin
 					: (process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000");
 
-			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/store"; // always /store
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/store";
 
 			const res = await fetch(`${origin}${basePath}/api/cart/checkout`, {
 				method: "POST",
@@ -79,10 +80,13 @@ export default function CheckoutForm({
 	return (
 		<section className="max-w-md pb-12" aria-busy={loading} aria-live="polite">
 			<h2 className="text-3xl font-bold leading-none tracking-tight">{title}</h2>
-			<p className="mb-4 mt-2 text-sm text-muted-foreground">{description}</p>
+			<p className="mt-2 text-sm text-muted-foreground">{description}</p>
+
+			{/* ✅ render note on its own line */}
+			{note && <p className="mt-1 text-sm text-muted-foreground">Note: {note}</p>}
 
 			{errorMessage && (
-				<p role="alert" className="text-sm text-red-500">
+				<p role="alert" className="mt-2 text-sm text-red-500">
 					{errorMessage}
 				</p>
 			)}
@@ -90,7 +94,7 @@ export default function CheckoutForm({
 			<Button
 				type="button"
 				variant="outline"
-				className="w-full rounded-full text-lg"
+				className="mt-4 w-full rounded-full text-lg"
 				disabled={loading}
 				aria-disabled={loading}
 				onClick={handleCheckoutRedirect}

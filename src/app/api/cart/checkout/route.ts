@@ -1,8 +1,7 @@
 // src/app/api/cart/checkout/route.ts
 import { NextResponse } from "next/server";
-
-import { createStripeClient } from "@/lib/stripe/client";
 import type Stripe from "stripe";
+import { createStripeClient } from "@/lib/stripe/client";
 
 // ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
@@ -48,7 +47,22 @@ export async function POST(req: Request) {
 		console.log("✅ Stripe client initialized for checkout");
 
 		// ✅ Build Stripe line items
-		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => {
+		const detailedItems = await Promise.all(
+			cart.map(async (item) => {
+				let price: Stripe.Price | null = null;
+				if (item.priceId) {
+					price = await stripe.prices.retrieve(item.priceId);
+				}
+				const isSubscription = price?.type === "recurring";
+				return { item, price, isSubscription };
+			}),
+		);
+
+		const subscriptionItems = detailedItems.filter((entry) => entry.isSubscription);
+		const oneTimeItems = detailedItems.filter((entry) => !entry.isSubscription);
+
+		const makeLineItem = (entry: (typeof detailedItems)[number]) => {
+			const { item } = entry;
 			if (item.priceId) {
 				return {
 					price: item.priceId,
@@ -67,29 +81,67 @@ export async function POST(req: Request) {
 				},
 				quantity: item.quantity,
 			};
-		});
+		};
 
-		console.log("🧾 Stripe line items:", JSON.stringify(line_items, null, 2));
+		const subscriptionLineItems = subscriptionItems.map(makeLineItem);
+		const oneTimeLineItems = oneTimeItems.map(makeLineItem);
 
-		// ✅ Create checkout session
+		if (subscriptionLineItems.length > 0 && subscriptionLineItems.some((li) => !("price" in li))) {
+			return NextResponse.json(
+				{ error: "Subscription items must reference a Stripe price" },
+				{ status: 400 },
+			);
+		}
+
+		if (subscriptionLineItems.length > 0 && oneTimeLineItems.length > 0) {
+			const subscriptionSession = await stripe.checkout.sessions.create({
+				mode: "subscription",
+				line_items: subscriptionLineItems,
+				billing_address_collection: "required",
+				automatic_tax: { enabled: true },
+				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+				cancel_url: `${baseUrl}${basePath}/cart`,
+			});
+
+			const nextParam = subscriptionSession.url
+				? Buffer.from(subscriptionSession.url).toString("base64url")
+				: "";
+
+			const paymentSession = await stripe.checkout.sessions.create({
+				mode: "payment",
+				line_items: oneTimeLineItems,
+				billing_address_collection: "required",
+				shipping_address_collection: { allowed_countries: ["CA", "US"] },
+				automatic_tax: { enabled: true },
+				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}${
+					nextParam ? `&next=${nextParam}` : ""
+				}`,
+				cancel_url: `${baseUrl}${basePath}/cart`,
+			});
+
+			if (!paymentSession.url) {
+				return NextResponse.json({ error: "❌ Stripe did not return a URL" }, { status: 500 });
+			}
+
+			return NextResponse.json({ url: paymentSession.url });
+		}
+
+		const line_items = subscriptionLineItems.length > 0 ? subscriptionLineItems : oneTimeLineItems;
+		const mode = subscriptionLineItems.length > 0 ? "subscription" : "payment";
 		const session = await stripe.checkout.sessions.create({
-			mode: "payment",
+			mode,
 			line_items,
 			billing_address_collection: "required",
-			shipping_address_collection: { allowed_countries: ["CA", "US"] },
+			shipping_address_collection: mode === "payment" ? { allowed_countries: ["CA", "US"] } : undefined,
 			automatic_tax: { enabled: true },
 			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${baseUrl}${basePath}/cart`,
 		});
 
-		console.log("✅ Stripe session created:", session.id);
-
 		if (!session.url) {
-			console.error("❌ Stripe did not return a URL");
 			return NextResponse.json({ error: "❌ Stripe did not return a URL" }, { status: 500 });
 		}
 
-		console.log("🔗 Checkout redirect URL:", session.url);
 		return NextResponse.json({ url: session.url });
 	} catch (err: unknown) {
 		if (err instanceof Error) {

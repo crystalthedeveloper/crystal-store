@@ -67,6 +67,7 @@
 	"/cart.page.title": "Your cart",
 	"/cart.page.checkoutTitle": "Checkout",
 	"/cart.page.checkoutDescription": "Provide billing and shipping details below.",
+	"/cart.page.note": "Note: Subscription maintenance items will appear in the next checkout.",
 	"/cart.page.summaryTable.imageCol": "Image",
 	"/cart.page.summaryTable.productCol": "Product",
 	"/cart.page.summaryTable.priceCol": "Price",

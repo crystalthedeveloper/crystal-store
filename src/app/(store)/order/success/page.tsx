@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
 import Image from "next/image";
 import type { ComponentProps } from "react";
+import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
@@ -32,6 +33,8 @@ export default async function OrderDetailsPage({
 
 	const sp = await searchParams;
 	const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined;
+	const nextUrl = typeof sp.next === "string" ? Buffer.from(sp.next, "base64url").toString("utf8") : undefined;
+	if (nextUrl) redirect(nextUrl);
 
 	if (!sessionId) return <div>Missing session_id</div>;
 
