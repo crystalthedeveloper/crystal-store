@@ -4,7 +4,7 @@ import getConfig from "next/config";
 import Image from "next/image";
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
-import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
+import { type MappedProduct, productBrowse } from "@/lib/stripe/commerce";
 import StoreConfig from "@/store.config";
 import { CategoryBox } from "@/ui/category-box";
 import { ProductList } from "@/ui/products/product-list";

@@ -163,7 +163,13 @@ async function findProductBySlug(stripe: Stripe, slug: string): Promise<Stripe.P
 }
 
 export async function productBrowse(params: ProductBrowseParams = {}): Promise<MappedProduct[]> {
-	if (!env.STRIPE_SECRET_KEY) return [];
+	if (!env.STRIPE_SECRET_KEY) {
+		console.warn("[stripe][productBrowse] missing STRIPE_SECRET_KEY; returning empty list", {
+			hasFilter: Boolean(params.filter),
+			category: params.filter?.category ?? null,
+		});
+		return [];
+	}
 	const stripe = ensureStripe();
 	const limit = (params.first ?? params.filter) ? 100 : 20;
 
@@ -199,7 +205,10 @@ export async function productBrowse(params: ProductBrowseParams = {}): Promise<M
 }
 
 export async function productGet(params: ProductGetParams): Promise<KitProduct[]> {
-	if (!env.STRIPE_SECRET_KEY) return [];
+	if (!env.STRIPE_SECRET_KEY) {
+		console.warn("[stripe][productGet] missing STRIPE_SECRET_KEY; returning empty array", { slug: params.slug });
+		return [];
+	}
 	const stripe = ensureStripe();
 	const product = await findProductBySlug(stripe, params.slug);
 	if (!product) return [];
