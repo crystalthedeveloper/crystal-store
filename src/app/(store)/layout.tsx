@@ -31,8 +31,24 @@ async function getAccountAndLogo(): Promise<{ account: Stripe.Account | null; lo
 			return { account, logoUrl: undefined };
 		}
 
-		const link = await stripe.fileLinks.create({ file: logoId });
-		return { account, logoUrl: link.url ?? undefined };
+		try {
+			const link = await stripe.fileLinks.create({ file: logoId });
+			return { account, logoUrl: link.url ?? undefined };
+		} catch (error) {
+			const isResourceMissing =
+				error &&
+				typeof error === "object" &&
+				"code" in error &&
+				(error as { code?: string }).code === "resource_missing";
+			if (isResourceMissing) {
+				console.warn(
+					"StoreLayout: branding logo missing in this Stripe mode (skipping)",
+					error,
+				);
+				return { account, logoUrl: undefined };
+			}
+			throw error;
+		}
 	} catch (error) {
 		console.warn("StoreLayout: failed to load account/logo from Stripe.", error);
 		return { account: null, logoUrl: undefined };
