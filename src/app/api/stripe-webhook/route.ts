@@ -144,6 +144,12 @@ export async function POST(req: Request) {
 						};
 
 						// Send order to Printful in DRAFT mode (set confirm:true for live)
+						const externalIdRaw =
+							typeof session.payment_intent === "string"
+								? session.payment_intent
+								: session.payment_intent?.id ?? session.id;
+						const externalId = externalIdRaw.slice(0, 64);
+
 						const res = await fetch("https://api.printful.com/orders", {
 							method: "POST",
 							headers: {
@@ -151,7 +157,7 @@ export async function POST(req: Request) {
 								"Content-Type": "application/json",
 							},
 							body: JSON.stringify({
-								external_id: session.id,
+								external_id: externalId,
 								recipient,
 								items,
 								confirm: false,
