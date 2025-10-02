@@ -16,12 +16,12 @@ export default function CheckoutForm({
 	locale,
 	title,
 	description,
-	note, // ✅ add note here
+	note,
 }: {
 	locale: string;
 	title: string;
 	description: string;
-	note?: string; // ✅ optional for safety
+	note?: string;
 }) {
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,15 +29,20 @@ export default function CheckoutForm({
 	const lines = useCartStore((s) => s.lines);
 
 	const cart = lines.map((line) => {
+		const baseName = line.name ?? "Unknown";
 		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean);
-		const displayName = formatProductName(line.name ?? "Unknown", variantParts.join(" / "));
+		const variantLabel = variantParts.join(" / ");
+		const displayName = formatProductName(baseName, variantLabel);
 
 		return {
-			name: displayName,
+			name: baseName,
+			displayName, // ✅ "04H (Black / XS)"
+			variantLabel: variantLabel || undefined,
 			price: line.price,
 			quantity: line.quantity,
 			image: line.image,
 			priceId: line.priceId,
+			currency: line.currency,
 			metadata: line.metadata ?? {},
 		};
 	});
@@ -82,7 +87,6 @@ export default function CheckoutForm({
 			<h2 className="text-3xl font-bold leading-none tracking-tight">{title}</h2>
 			<p className="mt-2 text-sm text-muted-foreground">{description}</p>
 
-			{/* ✅ render note on its own line */}
 			{note && <p className="mt-1 text-sm text-muted-foreground">Note: {note}</p>}
 
 			{errorMessage && (

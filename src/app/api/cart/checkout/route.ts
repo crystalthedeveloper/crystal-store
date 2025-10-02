@@ -3,10 +3,8 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createStripeClient } from "@/lib/stripe/client";
 
-// ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
 
-// ✅ Env loader
 function requireEnv(name: string): string {
 	const val = process.env[name];
 	if (!val) throw new Error(`❌ Missing required env variable: ${name}`);
@@ -15,38 +13,31 @@ function requireEnv(name: string): string {
 
 type CartItem = {
 	name: string;
-	price: number; // already in cents
+	displayName?: string;
+	variantLabel?: string;
+	price: number; // cents
 	quantity: number;
 	image?: string;
 	priceId?: string;
 	metadata?: Record<string, string | undefined>;
+	currency?: string;
 };
 
 export async function POST(req: Request) {
 	try {
-		console.log("📩 Incoming checkout request...");
-
 		const body = (await req.json()) as { cart?: CartItem[] };
 		const { cart } = body;
-		console.log("🛒 Cart body:", JSON.stringify(cart, null, 2));
-
-		const baseUrl = requireEnv("NEXT_PUBLIC_URL"); // e.g. https://www.crystalthedeveloper.ca
-		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""; // e.g. /store
-		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
-
-		console.log("🌐 Base URL:", baseUrl);
-		console.log("📂 Base Path:", basePath);
 
 		if (!cart || cart.length === 0) {
-			console.warn("⚠️ Cart is empty!");
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		// ✅ Lock to Stripe’s pinned API version (Cloudflare-safe client)
-		const stripe = createStripeClient(stripeSecret);
-		console.log("✅ Stripe client initialized for checkout");
+		const baseUrl = requireEnv("NEXT_PUBLIC_URL");
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
 
-		// ✅ Build Stripe line items
+		const stripe = createStripeClient(stripeSecret);
+
 		const detailedItems = await Promise.all(
 			cart.map(async (item) => {
 				let price: Stripe.Price | null = null;
@@ -58,24 +49,26 @@ export async function POST(req: Request) {
 			}),
 		);
 
-		const subscriptionItems = detailedItems.filter((entry) => entry.isSubscription);
-		const oneTimeItems = detailedItems.filter((entry) => !entry.isSubscription);
-
 		const makeLineItem = (entry: (typeof detailedItems)[number]) => {
 			const { item } = entry;
-			if (item.priceId) {
-				return {
-					price: item.priceId,
-					quantity: item.quantity,
-				};
-			}
+			const baseName = item.name || "Item";
+			const variantLabel = item.variantLabel?.trim() || "";
+			const displayName = item.displayName || (variantLabel ? `${baseName} (${variantLabel})` : baseName);
+			const currency = (item.currency || "cad").toLowerCase();
+
+			const productMetadata = {
+				...(item.metadata ?? {}),
+				base_name: baseName,
+				...(variantLabel ? { variant_label: variantLabel } : {}),
+			};
 
 			return {
 				price_data: {
-					currency: "cad",
+					currency,
 					product_data: {
-						name: item.name,
+						name: displayName,
 						...(item.image && { images: [item.image] }),
+						metadata: productMetadata,
 					},
 					unit_amount: Math.round(item.price),
 				},
@@ -83,51 +76,12 @@ export async function POST(req: Request) {
 			};
 		};
 
-		const subscriptionLineItems = subscriptionItems.map(makeLineItem);
-		const oneTimeLineItems = oneTimeItems.map(makeLineItem);
+		const subscriptionItems = detailedItems.filter((e) => e.isSubscription).map(makeLineItem);
+		const oneTimeItems = detailedItems.filter((e) => !e.isSubscription).map(makeLineItem);
 
-		if (subscriptionLineItems.length > 0 && subscriptionLineItems.some((li) => !("price" in li))) {
-			return NextResponse.json(
-				{ error: "Subscription items must reference a Stripe price" },
-				{ status: 400 },
-			);
-		}
+		const line_items = subscriptionItems.length > 0 ? subscriptionItems : oneTimeItems;
+		const mode = subscriptionItems.length > 0 ? "subscription" : "payment";
 
-		if (subscriptionLineItems.length > 0 && oneTimeLineItems.length > 0) {
-			const subscriptionSession = await stripe.checkout.sessions.create({
-				mode: "subscription",
-				line_items: subscriptionLineItems,
-				billing_address_collection: "required",
-				automatic_tax: { enabled: true },
-				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-				cancel_url: `${baseUrl}${basePath}/cart`,
-			});
-
-			const nextParam = subscriptionSession.url
-				? Buffer.from(subscriptionSession.url).toString("base64url")
-				: "";
-
-			const paymentSession = await stripe.checkout.sessions.create({
-				mode: "payment",
-				line_items: oneTimeLineItems,
-				billing_address_collection: "required",
-				shipping_address_collection: { allowed_countries: ["CA", "US"] },
-				automatic_tax: { enabled: true },
-				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}${
-					nextParam ? `&next=${nextParam}` : ""
-				}`,
-				cancel_url: `${baseUrl}${basePath}/cart`,
-			});
-
-			if (!paymentSession.url) {
-				return NextResponse.json({ error: "❌ Stripe did not return a URL" }, { status: 500 });
-			}
-
-			return NextResponse.json({ url: paymentSession.url });
-		}
-
-		const line_items = subscriptionLineItems.length > 0 ? subscriptionLineItems : oneTimeLineItems;
-		const mode = subscriptionLineItems.length > 0 ? "subscription" : "payment";
 		const session = await stripe.checkout.sessions.create({
 			mode,
 			line_items,
@@ -149,6 +103,6 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: err.message }, { status: 500 });
 		}
 		console.error("❌ Stripe checkout unknown error:", err);
-		return NextResponse.json({ error: "Unknown error creating checkout session" }, { status: 500 });
+		return NextResponse.json({ error: "Unknown error" }, { status: 500 });
 	}
 }

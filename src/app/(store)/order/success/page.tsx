@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatProductName } from "@/lib/utils";
 import { createStripeClient } from "@/lib/stripe/client";
 import type Stripe from "stripe";
 
@@ -77,18 +77,65 @@ export default async function OrderDetailsPage({
 			{/* Products List */}
 			<ul role="list" className="my-8 space-y-6">
 				{session.line_items?.data.map((line) => {
-					const product = line.price?.product;
+					const productRaw = line.price?.product;
+					const product =
+						typeof productRaw === "object" && productRaw && !productRaw.deleted ? productRaw : null;
+					const productMetadata = (product?.metadata ?? {}) as Record<string, string | undefined>;
+					const baseName =
+						(typeof productMetadata.base_name === "string" && productMetadata.base_name.trim()) ||
+						product?.name ||
+						(line.description ?? "Product");
+					const descriptionVariant =
+						typeof line.description === "string" && line.description.trim().length > 0
+							? line.description.trim()
+							: undefined;
+
+					const variantParts: string[] = [];
+					const pushVariant = (value?: string) => {
+						if (!value) return;
+						const trimmed = value.trim();
+						if (!trimmed) return;
+						if (variantParts.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) return;
+						variantParts.push(trimmed);
+					};
+
+					pushVariant(productMetadata.color);
+					pushVariant(productMetadata.size);
+					pushVariant(productMetadata.variant_label);
+
+					if (descriptionVariant) {
+						const lowerBase = baseName.toLowerCase();
+						const lowerDesc = descriptionVariant.toLowerCase();
+						if (lowerDesc.startsWith(lowerBase)) {
+							const remainder = descriptionVariant.slice(baseName.length).trim();
+							let parsedVariant = remainder;
+							if (remainder.startsWith("(") && remainder.endsWith(")")) {
+								parsedVariant = remainder.slice(1, -1).trim();
+							} else if (remainder.startsWith("-")) {
+								parsedVariant = remainder.slice(1).trim();
+							} else if (remainder.startsWith(":")) {
+								parsedVariant = remainder.slice(1).trim();
+							}
+							pushVariant(parsedVariant);
+						}
+					}
+
+					const variantLabel = variantParts.join(" / ");
+					const displayName = formatProductName(baseName, variantLabel);
+					const supplementalDescription =
+						descriptionVariant && !descriptionVariant.toLowerCase().startsWith(baseName.toLowerCase())
+							? descriptionVariant
+							: product?.description;
+
 					return (
 						<li key={line.id} className="flex items-start gap-6 rounded-lg border p-4 shadow-sm">
 							{/* Product Image */}
 							{product &&
-								typeof product !== "string" &&
-								!product.deleted &&
 								Array.isArray(product.images) &&
 								product.images.length > 0 && (
 									<Image
 										src={product.images[0] as string} // ✅ force type safe, never undefined
-										alt={line.description ?? "Product image"}
+										alt={displayName}
 										width={100}
 										height={100}
 										className="h-24 w-24 rounded-md object-cover"
@@ -98,7 +145,14 @@ export default async function OrderDetailsPage({
 
 							{/* Product Details */}
 							<div className="flex-1">
-								<h3 className="font-semibold text-lg text-neutral-900">{line.description}</h3>
+								<h3 className="font-semibold text-lg text-neutral-900">{displayName}</h3>
+								{variantLabel &&
+									!displayName.toLowerCase().includes(variantLabel.toLowerCase()) && (
+										<p className="mt-1 text-sm text-muted-foreground">{variantLabel}</p>
+									)}
+								{supplementalDescription && (
+									<p className="mt-1 text-sm text-muted-foreground">{supplementalDescription}</p>
+								)}
 
 					<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground leading-relaxed">
 						<div>
