@@ -5,9 +5,14 @@ import Stripe from "stripe";
 // ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
 
-function requireEnv(value: string | undefined, name: string): string {
-	if (!value) throw new Error(`❌ Missing required env variable: ${name}`);
-	return value;
+// ✅ Env loader with fallback for Webflow Cloud
+function requireEnv(name: string): string {
+	const val =
+		process.env[name] ||
+		(name === "STRIPE_SECRET_KEY" ? process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY : undefined);
+
+	if (!val) throw new Error(`❌ Missing required env variable: ${name}`);
+	return val;
 }
 
 type CartItem = {
@@ -25,9 +30,9 @@ export async function POST(req: Request) {
 		const { cart } = body;
 		console.log("🛒 Cart body:", JSON.stringify(cart, null, 2));
 
-		const baseUrl = requireEnv(process.env.NEXT_PUBLIC_URL, "NEXT_PUBLIC_URL");
+		const baseUrl = requireEnv("NEXT_PUBLIC_URL");
 		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-		const stripeSecret = requireEnv(process.env.STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY");
+		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
 
 		console.log("🌐 Base URL:", baseUrl);
 		console.log("📂 Base Path:", basePath);
@@ -39,10 +44,8 @@ export async function POST(req: Request) {
 		}
 
 		const stripe = new Stripe(stripeSecret);
-
 		console.log("✅ Stripe initialized");
 
-		// ✅ Build Stripe line items
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
 			price_data: {
 				currency: "cad",
@@ -57,7 +60,6 @@ export async function POST(req: Request) {
 
 		console.log("🧾 Stripe line items:", JSON.stringify(line_items, null, 2));
 
-		// ✅ Create checkout session
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
 			line_items,
@@ -76,13 +78,15 @@ export async function POST(req: Request) {
 		}
 
 		console.log("🔗 Checkout redirect URL:", session.url);
-
 		return NextResponse.json({ url: session.url });
-	} catch (err) {
-		console.error("❌ Stripe checkout error:", err);
-		return NextResponse.json(
-			{ error: err instanceof Error ? err.message : "Unknown error creating checkout session" },
-			{ status: 500 },
-		);
+	} catch (err: unknown) {
+		if (err instanceof Error) {
+			console.error("❌ Stripe checkout error:", err.message);
+			return NextResponse.json({ error: err.message }, { status: 500 });
+		}
+
+		// handle non-Error values
+		console.error("❌ Stripe checkout unknown error:", err);
+		return NextResponse.json({ error: "Unknown error creating checkout session" }, { status: 500 });
 	}
 }
