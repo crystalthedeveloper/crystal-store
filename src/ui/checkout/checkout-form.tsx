@@ -45,8 +45,10 @@ export default function CheckoutForm({
 		setLoading(true);
 
 		try {
-			const baseUrl = process.env.NEXT_PUBLIC_URL ?? "";
-			const res = await fetch(`${baseUrl}/api/cart/checkout`, {
+			const baseUrl = process.env.NEXT_PUBLIC_URL!;
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
+			const res = await fetch(`${baseUrl}${basePath}/api/cart/checkout`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ locale, cart }), // ✅ send enriched cart

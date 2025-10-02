@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 			billing_address_collection: "required",
 			shipping_address_collection: { allowed_countries: ["CA", "US"] },
 			automatic_tax: { enabled: true },
-			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+			success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${baseUrl}${basePath}/cart`,
 		});
 

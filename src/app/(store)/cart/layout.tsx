@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { CartSummaryTable } from "@/ui/checkout/cart-summary-table";
-import CheckoutForm from "@/ui/checkout/checkout-form"; // ✅ use CheckoutForm directly
+import CheckoutForm from "@/ui/checkout/checkout-form";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
