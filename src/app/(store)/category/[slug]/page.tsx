@@ -4,7 +4,7 @@ import Stripe from "stripe";
 
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
-import { deslugify } from "@/lib/utils";
+import { deslugify, slugify } from "@/lib/utils";
 import type { NormalizedProduct } from "@/ui/json-ld";
 import { ProductList } from "@/ui/products/product-list";
 import { YnsLink } from "@/ui/yns-link";
@@ -12,6 +12,43 @@ import { YnsLink } from "@/ui/yns-link";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const normalizeCategorySlug = (value: string) => slugify(value);
+
+const extractCategoryTokens = (value?: string | null) => {
+	if (!value) return [] as string[];
+	const trimmed = value.trim();
+	if (!trimmed) return [] as string[];
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (Array.isArray(parsed)) {
+			return parsed.filter((item): item is string => typeof item === "string");
+		}
+		if (typeof parsed === "string") {
+			return [parsed];
+		}
+		if (typeof parsed === "object" && parsed !== null) {
+			return Object.values(parsed).filter((item): item is string => typeof item === "string");
+		}
+	} catch (err) {
+		// fall through to string parsing
+	}
+	return trimmed.split(/[,|]/).map((part) => part.trim()).filter(Boolean);
+};
+
+const matchesCategorySlug = (metadata: Stripe.Metadata | null | undefined, slug: string) => {
+	if (!metadata) return false;
+	const target = normalizeCategorySlug(slug);
+	const relevantEntries = Object.entries(metadata).filter(([key]) => /category|tag/i.test(key));
+	for (const [, rawValue] of relevantEntries) {
+		for (const token of extractCategoryTokens(rawValue)) {
+			if (normalizeCategorySlug(token) === target) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
 
 /**
  * Build SEO metadata for a category page
@@ -40,7 +77,7 @@ export async function generateMetadata({
 			active: true,
 			limit: 10,
 		});
-		const hasProducts = products.data.some((p) => p.metadata?.category === slug);
+		const hasProducts = products.data.some((p) => matchesCategorySlug(p.metadata, slug));
 
 		return hasProducts
 			? baseMeta
@@ -95,18 +132,26 @@ export default async function CategoryPage({
 		});
 
 		products = res.data
-			.filter((p) => p.metadata?.category === slug)
-			.map((p) => ({
-				id: p.id,
-				name: p.name,
-				description: p.description,
-				images: p.images ?? [],
-				metadata: p.metadata ?? {},
-				default_price: {
-					unit_amount: (p.default_price as Stripe.Price | null)?.unit_amount ?? null,
-					currency: (p.default_price as Stripe.Price | null)?.currency ?? "usd",
-				},
-			}));
+			.filter((p) => matchesCategorySlug(p.metadata, slug))
+			.map((p) => {
+				const metadata: Record<string, string> = { ...(p.metadata ?? {}) };
+				if (!metadata.category) {
+					metadata.category = slug;
+				}
+
+				return {
+					id: p.id,
+					name: p.name,
+					description: p.description,
+					images: p.images ?? [],
+					metadata,
+					default_price: {
+						unit_amount: (p.default_price as Stripe.Price | null)?.unit_amount ?? null,
+						currency: (p.default_price as Stripe.Price | null)?.currency ?? "usd",
+					},
+				};
+			});
+
 	} catch (err) {
 		console.warn("CategoryPage: Stripe fetch failed; treating as empty category.", err);
 	}
