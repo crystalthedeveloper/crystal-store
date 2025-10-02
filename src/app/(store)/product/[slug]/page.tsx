@@ -157,7 +157,8 @@ export default async function SingleProductPage(props: {
 	const { isWebflow, links, featurePairs, license } = webflow;
 
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
-	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? env.STRIPE_CURRENCY ?? "usd";
+	const displayCurrency =
+		selectedPrice?.currency ?? product.default_price?.currency ?? env.STRIPE_CURRENCY ?? "usd";
 
 	// ✅ Fix disable flag logic
 	const forceDisabled = disable === "true";
@@ -171,7 +172,7 @@ export default async function SingleProductPage(props: {
 		images,
 		metadata: { ...(product.metadata ?? {}) },
 		default_price: {
-			id: selectedPrice?.id ?? (product.default_price?.id ?? undefined),
+			id: selectedPrice?.id ?? product.default_price?.id ?? undefined,
 			unit_amount: displayAmount,
 			currency: displayCurrency.toString().toUpperCase(),
 		},

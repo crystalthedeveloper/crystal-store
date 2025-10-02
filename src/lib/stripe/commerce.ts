@@ -63,10 +63,7 @@ function sanitizeMetadata(metadata?: Stripe.Metadata | null): StripeMetadata {
 	return result;
 }
 
-async function ensureDefaultPrice(
-	stripe: Stripe,
-	product: Stripe.Product,
-): Promise<Stripe.Price | null> {
+async function ensureDefaultPrice(stripe: Stripe, product: Stripe.Product): Promise<Stripe.Price | null> {
 	const raw = product.default_price;
 	if (!raw) return null;
 	if (typeof raw === "string") {
@@ -100,9 +97,9 @@ function toMappedProduct(product: KitProduct): MappedProduct {
 		images: Array.isArray(product.images) ? product.images : [],
 		metadata: product.metadata,
 		default_price: {
-			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : product.default_price?.id ?? "",
+			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : (product.default_price?.id ?? ""),
 			unit_amount: defaultPrice?.unit_amount ?? null,
-			currency: defaultPrice?.currency?.toUpperCase() ?? (env.STRIPE_CURRENCY ?? "USD"),
+			currency: defaultPrice?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY ?? "USD",
 		},
 		updated: typeof product.updated === "number" ? product.updated : 0,
 	};
@@ -154,7 +151,7 @@ async function findProductBySlug(stripe: Stripe, slug: string): Promise<Stripe.P
 export async function productBrowse(params: ProductBrowseParams = {}): Promise<MappedProduct[]> {
 	if (!env.STRIPE_SECRET_KEY) return [];
 	const stripe = ensureStripe();
-	const limit = params.first ?? params.filter ? 100 : 20;
+	const limit = (params.first ?? params.filter) ? 100 : 20;
 
 	let products: Stripe.Product[] = [];
 	if (params.filter?.category) {
@@ -180,7 +177,9 @@ export async function productGet(params: ProductGetParams): Promise<KitProduct[]
 	return [toKitProduct(product, defaultPrice)];
 }
 
-export async function getProductWithPrices(slug: string): Promise<{ product: KitProduct; prices: KitPrice[] }> {
+export async function getProductWithPrices(
+	slug: string,
+): Promise<{ product: KitProduct; prices: KitPrice[] }> {
 	if (!env.STRIPE_SECRET_KEY) {
 		throw new Error("Stripe secret key is not configured");
 	}
@@ -238,9 +237,12 @@ export function provider(config: ProviderConfig = {}): Stripe {
 export function mapProducts(response: Stripe.ApiList<Stripe.Product>): MappedProduct[] {
 	return response.data.map((product) =>
 		toMappedProduct(
-			toKitProduct(product, (product.default_price && typeof product.default_price === "object"
-				? (product.default_price as Stripe.Price)
-				: null)),
+			toKitProduct(
+				product,
+				product.default_price && typeof product.default_price === "object"
+					? (product.default_price as Stripe.Price)
+					: null,
+			),
 		),
 	);
 }

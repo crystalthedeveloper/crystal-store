@@ -16,11 +16,7 @@ export const revalidate = 0;
 /**
  * Build SEO metadata for a category page
  */
-export async function generateMetadata({
-	params,
-}: {
-	params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
 	const { slug } = await params;
 	const categoryName = deslugify(slug);
 	const t = await getTranslations("/category.metadata");
@@ -38,9 +34,9 @@ export async function generateMetadata({
 		return products.length > 0
 			? baseMeta
 			: {
-				...baseMeta,
-				robots: { index: false, follow: false },
-			};
+					...baseMeta,
+					robots: { index: false, follow: false },
+				};
 	} catch (err) {
 		console.warn("generateMetadata: Stripe browse failed", err);
 		return baseMeta;
@@ -67,11 +63,7 @@ const mapProductToNormalized = (product: MappedProduct, slug: string): Normalize
 /**
  * Category Page
  */
-export default async function CategoryPage({
-	params,
-}: {
-	params: Promise<{ slug: string }>;
-}) {
+export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
 	const { slug } = await params;
 	const categoryName = deslugify(slug);
 	const t = await getTranslations("/category.page");
@@ -82,9 +74,7 @@ export default async function CategoryPage({
 			<main className="pb-8">
 				<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
 					{categoryName}
-					<div className="text-lg font-semibold text-muted-foreground">
-						{t("title", { categoryName })}
-					</div>
+					<div className="text-lg font-semibold text-muted-foreground">{t("title", { categoryName })}</div>
 				</h1>
 				<p className="mt-4 text-sm text-muted-foreground">
 					Store preview is disabled in this environment (Stripe is not configured).
@@ -112,9 +102,7 @@ export default async function CategoryPage({
 		<main className="pb-8">
 			<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
 				{categoryName}
-				<div className="text-lg font-semibold text-muted-foreground">
-					{t("title", { categoryName })}
-				</div>
+				<div className="text-lg font-semibold text-muted-foreground">{t("title", { categoryName })}</div>
 			</h1>
 
 			{hasProducts ? (

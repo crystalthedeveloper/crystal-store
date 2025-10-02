@@ -100,9 +100,7 @@ export default async function Home() {
 	let products: ProductFromBrowse[] = [];
 	try {
 		const allProducts = await productBrowse({ first: 24 });
-		products = allProducts
-			.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))
-			.slice(0, 6);
+		products = allProducts.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0)).slice(0, 6);
 	} catch (e) {
 		console.warn("Home: productBrowse failed; rendering without products.", e);
 	}

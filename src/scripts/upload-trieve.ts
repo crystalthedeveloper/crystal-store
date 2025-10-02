@@ -25,7 +25,7 @@ const data = await stripe.products.list({
 	active: true,
 	expand: ["data.default_price"],
 });
-	const chunks = mapProducts(data).flatMap((product): ChunkReqPayload | ChunkReqPayload[] => {
+const chunks = mapProducts(data).flatMap((product): ChunkReqPayload | ChunkReqPayload[] => {
 	const slug = product.metadata.slug;
 	if (!product.default_price.unit_amount || !slug) {
 		return [];
@@ -43,10 +43,10 @@ Description: ${product.description}
 		tracking_id: product.id,
 		upsert_by_tracking_id: true,
 		link,
-			metadata: {
-				name: product.name,
-				description: product.description,
-				slug,
+		metadata: {
+			name: product.name,
+			description: product.description,
+			slug,
 			image_url: product.images[0],
 			amount: product.default_price.unit_amount,
 			currency: product.default_price.currency,
