@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
 import Image from "next/image";
 import type { ComponentProps } from "react";
-import Stripe from "stripe";
 import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { formatMoney } from "@/lib/utils";
+import { createStripeClient } from "@/lib/stripe/client";
+import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +21,7 @@ export const generateMetadata = async (): Promise<Metadata> => {
 
 type NextSearchParams = Record<string, string | string[] | undefined>;
 
-const stripe = env.STRIPE_SECRET_KEY
-	? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2025-09-30.clover" })
-	: null;
+const stripe = env.STRIPE_SECRET_KEY ? createStripeClient(env.STRIPE_SECRET_KEY) : null;
 
 export default async function OrderDetailsPage({
 	searchParams,
