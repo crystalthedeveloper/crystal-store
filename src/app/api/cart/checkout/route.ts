@@ -1,6 +1,8 @@
 // src/app/api/cart/checkout/route.ts
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+
+import { createStripeClient } from "@/lib/stripe/client";
+import type Stripe from "stripe";
 
 // ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
@@ -39,11 +41,9 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		// ✅ Lock to Stripe’s pinned API version
-		const stripe = new Stripe(stripeSecret, {
-			apiVersion: "2025-09-30.clover",
-		});
-		console.log("✅ Stripe initialized with version 2025-09-30.clover");
+		// ✅ Lock to Stripe’s pinned API version (Cloudflare-safe client)
+		const stripe = createStripeClient(stripeSecret);
+		console.log("✅ Stripe client initialized for checkout");
 
 		// ✅ Build Stripe line items
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({
