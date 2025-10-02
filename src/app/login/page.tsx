@@ -17,7 +17,7 @@ export default function LoginPage() {
 						<LaptopIcon className="size-4" />
 					</Link>
 
-					{/* Homepage */}
+					{/* Company page */}
 					<Link
 						href="https://www.crystalthedeveloper.ca/"
 						className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground"
