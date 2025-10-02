@@ -45,7 +45,7 @@ bun run docker:run          # Run Docker container
 - **TypeScript**: Strict configuration with path aliases
 - **Styling**: Tailwind CSS v4 with Radix UI components
 - **State Management**: React Context for cart functionality
-- **Payment Processing**: Stripe integration via commerce-kit
+- **Payment Processing**: Direct Stripe integration (Checkout + Payment Intent APIs)
 - **Testing**: Vitest with Testing Library
 - **Linting**: Biome (replaces ESLint/Prettier)
 

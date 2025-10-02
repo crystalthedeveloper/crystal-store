@@ -1,16 +1,26 @@
 // src/ui/product-bottom-sticky-card.tsx
-import type * as Commerce from "commerce-kit";
-import { formatMoney } from "commerce-kit/currencies";
-import { cn } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 import { MainProductImage } from "@/ui/products/main-product-image";
 import { AddToCartButton } from "./add-to-cart-button";
+
+export type StickyProduct = {
+	id: string;
+	name: string;
+	images: string[];
+	default_price: {
+		id?: string;
+		unit_amount: number | null;
+		currency: string;
+	};
+	metadata: Record<string, string>;
+};
 
 export const ProductBottomStickyCard = ({
 	product,
 	locale,
 	show,
 }: {
-	product: Commerce.MappedProduct;
+	product: StickyProduct;
 	locale: string;
 	show: boolean;
 }) => {

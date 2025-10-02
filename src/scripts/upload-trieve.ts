@@ -1,8 +1,8 @@
 import NextEnv from "@next/env";
 
-import * as Commerce from "commerce-kit";
-import { mapProducts } from "commerce-kit/internal";
 import { type ChunkReqPayload, TrieveSDK } from "trieve-ts-sdk";
+import { getStripeClient } from "@/lib/stripe/client";
+import { mapProducts } from "@/lib/stripe/commerce";
 
 NextEnv.loadEnvConfig(".");
 
@@ -18,23 +18,21 @@ if (!datasetId || !apiKey) {
 
 export const trieve = new TrieveSDK({ apiKey, datasetId });
 
-const stripe = Commerce.provider({
-	secretKey: env.STRIPE_SECRET_KEY,
-	tagPrefix: undefined,
-});
+const stripe = getStripeClient();
 
 const data = await stripe.products.list({
 	limit: 100,
 	active: true,
 	expand: ["data.default_price"],
 });
-const chunks = mapProducts(data).flatMap((product): ChunkReqPayload | ChunkReqPayload[] => {
-	if (!product.default_price.unit_amount) {
+	const chunks = mapProducts(data).flatMap((product): ChunkReqPayload | ChunkReqPayload[] => {
+	const slug = product.metadata.slug;
+	if (!product.default_price.unit_amount || !slug) {
 		return [];
 	}
 	const link = product.metadata.variant
-		? `/product/${product.metadata.slug}?variant=${product.metadata.variant}`
-		: `/product/${product.metadata.slug}`;
+		? `/product/${slug}?variant=${product.metadata.variant}`
+		: `/product/${slug}`;
 	return {
 		chunk_html: `
 Product Name: ${product.name}
@@ -45,10 +43,10 @@ Description: ${product.description}
 		tracking_id: product.id,
 		upsert_by_tracking_id: true,
 		link,
-		metadata: {
-			name: product.name,
-			description: product.description,
-			slug: product.metadata.slug,
+			metadata: {
+				name: product.name,
+				description: product.description,
+				slug,
 			image_url: product.images[0],
 			amount: product.default_price.unit_amount,
 			currency: product.default_price.currency,

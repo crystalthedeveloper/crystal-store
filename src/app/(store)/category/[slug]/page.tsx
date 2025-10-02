@@ -1,10 +1,10 @@
 // src/app/(store)/category/[slug]/page.tsx
 import type { Metadata } from "next";
-import Stripe from "stripe";
+import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
 
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
-import { deslugify, slugify } from "@/lib/utils";
+import { deslugify } from "@/lib/utils";
 import type { NormalizedProduct } from "@/ui/json-ld";
 import { ProductList } from "@/ui/products/product-list";
 import { YnsLink } from "@/ui/yns-link";
@@ -12,43 +12,6 @@ import { YnsLink } from "@/ui/yns-link";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const normalizeCategorySlug = (value: string) => slugify(value);
-
-const extractCategoryTokens = (value?: string | null) => {
-	if (!value) return [] as string[];
-	const trimmed = value.trim();
-	if (!trimmed) return [] as string[];
-	try {
-		const parsed = JSON.parse(trimmed);
-		if (Array.isArray(parsed)) {
-			return parsed.filter((item): item is string => typeof item === "string");
-		}
-		if (typeof parsed === "string") {
-			return [parsed];
-		}
-		if (typeof parsed === "object" && parsed !== null) {
-			return Object.values(parsed).filter((item): item is string => typeof item === "string");
-		}
-	} catch (err) {
-		// fall through to string parsing
-	}
-	return trimmed.split(/[,|]/).map((part) => part.trim()).filter(Boolean);
-};
-
-const matchesCategorySlug = (metadata: Stripe.Metadata | null | undefined, slug: string) => {
-	if (!metadata) return false;
-	const target = normalizeCategorySlug(slug);
-	const relevantEntries = Object.entries(metadata).filter(([key]) => /category|tag/i.test(key));
-	for (const [, rawValue] of relevantEntries) {
-		for (const token of extractCategoryTokens(rawValue)) {
-			if (normalizeCategorySlug(token) === target) {
-				return true;
-			}
-		}
-	}
-	return false;
-};
 
 /**
  * Build SEO metadata for a category page
@@ -70,26 +33,36 @@ export async function generateMetadata({
 	if (!env.STRIPE_SECRET_KEY) return baseMeta;
 
 	try {
-		const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+		const products = await productBrowse({ first: 1, filter: { category: slug } });
 
-		// Check if at least 1 product exists in this category
-		const products = await stripe.products.list({
-			active: true,
-			limit: 10,
-		});
-		const hasProducts = products.data.some((p) => matchesCategorySlug(p.metadata, slug));
-
-		return hasProducts
+		return products.length > 0
 			? baseMeta
 			: {
 				...baseMeta,
 				robots: { index: false, follow: false },
 			};
 	} catch (err) {
-		console.warn("generateMetadata: Stripe request failed", err);
+		console.warn("generateMetadata: Stripe browse failed", err);
 		return baseMeta;
 	}
 }
+
+const mapProductToNormalized = (product: MappedProduct, slug: string): NormalizedProduct => {
+	return {
+		id: product.id,
+		name: product.name,
+		description: product.description,
+		images: product.images ?? [],
+		metadata: {
+			...product.metadata,
+			category: product.metadata.category ?? slug,
+		},
+		default_price: {
+			unit_amount: product.default_price.unit_amount ?? null,
+			currency: product.default_price.currency ?? env.STRIPE_CURRENCY ?? "usd",
+		},
+	};
+};
 
 /**
  * Category Page
@@ -122,38 +95,15 @@ export default async function CategoryPage({
 
 	let products: NormalizedProduct[] = [];
 	try {
-		const stripe = new Stripe(env.STRIPE_SECRET_KEY);
-
-		// Fetch up to 100 products, expand price info
-		const res = await stripe.products.list({
-			active: true,
-			limit: 100,
-			expand: ["data.default_price"],
+		const results = await productBrowse({ filter: { category: slug }, first: 100 });
+		const ordered = results.sort((a, b) => {
+			const aOrder = Number(a.metadata.order ?? Infinity);
+			const bOrder = Number(b.metadata.order ?? Infinity);
+			return aOrder - bOrder;
 		});
-
-		products = res.data
-			.filter((p) => matchesCategorySlug(p.metadata, slug))
-			.map((p) => {
-				const metadata: Record<string, string> = { ...(p.metadata ?? {}) };
-				if (!metadata.category) {
-					metadata.category = slug;
-				}
-
-				return {
-					id: p.id,
-					name: p.name,
-					description: p.description,
-					images: p.images ?? [],
-					metadata,
-					default_price: {
-						unit_amount: (p.default_price as Stripe.Price | null)?.unit_amount ?? null,
-						currency: (p.default_price as Stripe.Price | null)?.currency ?? "usd",
-					},
-				};
-			});
-
+		products = ordered.map((product) => mapProductToNormalized(product, slug));
 	} catch (err) {
-		console.warn("CategoryPage: Stripe fetch failed; treating as empty category.", err);
+		console.warn("CategoryPage: Stripe browse failed; treating as empty category.", err);
 	}
 
 	const hasProducts = products.length > 0;

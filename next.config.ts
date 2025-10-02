@@ -19,7 +19,7 @@ const cfg: NextConfig = {
 	output: process.env.DOCKER ? "standalone" : undefined,
 	logging: { fetches: { fullUrl: true } },
 
-	transpilePackages: ["next-mdx-remote", "commerce-kit"],
+	transpilePackages: ["next-mdx-remote"],
 
 	experimental: {
 		esmExternals: true,

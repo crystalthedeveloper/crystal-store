@@ -2,6 +2,8 @@
 import { revalidateTag } from "next/cache";
 import type Stripe from "stripe";
 import { env } from "@/env.mjs";
+import { getStripeClient } from "@/lib/stripe/client";
+import { getProductsFromMetadata } from "@/lib/stripe/commerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,13 +31,7 @@ export async function POST(req: Request) {
 	if (!signature) return new Response("No signature", { status: 400 });
 
 	const rawBody = await req.text();
-	const Commerce = await import("commerce-kit");
-
-	const stripe = Commerce.provider({
-		secretKey: stripeSecret,
-		cache: "no-store",
-		tagPrefix: undefined,
-	});
+	const stripe = getStripeClient();
 
 	let event: Stripe.Event;
 	try {
@@ -183,10 +179,12 @@ export async function POST(req: Request) {
 					});
 				}
 
-				const products = await Commerce.getProductsFromMetadata(meta as Record<string, string>);
+				const products = await getProductsFromMetadata(meta as Record<string, string>);
 				for (const { product } of products) {
-					if (product && product.metadata?.stock !== Infinity) {
-						const current = Number(product.metadata?.stock ?? 0);
+					const rawStock = product?.metadata?.stock;
+					const hasFiniteStock = typeof rawStock === "string" && rawStock.toLowerCase() !== "infinity";
+					if (product && hasFiniteStock) {
+						const current = Number(rawStock ?? 0);
 						const quantity = Number(meta[`prod_${product.id}`] ?? 1);
 
 						await stripe.products.update(product.id, {

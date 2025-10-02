@@ -1,4 +1,4 @@
-import type * as Commerce from "commerce-kit";
+import type { MappedProduct } from "@/lib/stripe/commerce";
 
 const NO_MATCH = 0;
 const EXACT_MATCH = 5;
@@ -26,7 +26,7 @@ function simpleSearchMatch(query: string, value: null | undefined | string): num
 	return (EXACT_WORD_MULTIPLIER * exactWordOccurrences + includesOccurrences) / allWords;
 }
 
-export function simpleSearch(products: Commerce.MappedProduct[], query: string) {
+export function simpleSearch(products: MappedProduct[], query: string) {
 	const escapedQuery = escapeRegExp(query);
 	const matches = products
 		.flatMap((product) => {

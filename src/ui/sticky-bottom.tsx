@@ -1,6 +1,6 @@
 "use client";
-import type * as Commerce from "commerce-kit";
 import { useEffect, useState } from "react";
+import type { StickyProduct } from "@/ui/product-bottom-sticky-card";
 import { ProductBottomStickyCard } from "./product-bottom-sticky-card";
 
 export const StickyBottom = ({
@@ -9,7 +9,7 @@ export const StickyBottom = ({
 	locale,
 }: Readonly<{
 	children: React.ReactNode;
-	product: Commerce.MappedProduct;
+	product: StickyProduct;
 	locale: string;
 }>) => {
 	const [show, setShow] = useState(false);

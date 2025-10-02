@@ -1,8 +1,7 @@
 // src/ui/json-ld.tsx
-import { getDecimalFromStripeAmount } from "commerce-kit/currencies";
 import type { ItemList, Product, Thing, WebSite, WithContext } from "schema-dts";
 import type Stripe from "stripe";
-import { formatProductName } from "@/lib/utils";
+import { formatProductName, getDecimalFromStripeAmount } from "@/lib/utils";
 
 // ✅ Normalized type we send from CategoryPage → ProductList
 export type NormalizedProduct = {

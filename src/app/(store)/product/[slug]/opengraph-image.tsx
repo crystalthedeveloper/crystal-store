@@ -2,6 +2,8 @@
 import { ImageResponse } from "next/og";
 import { env } from "@/env.mjs";
 import { getLocale } from "@/i18n/server";
+import { getStripeClient } from "@/lib/stripe/client";
+import { productGet } from "@/lib/stripe/commerce";
 import { formatMoney } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -17,10 +19,6 @@ type ProductLike = {
 	default_price: { unit_amount?: number | null; currency: string };
 };
 
-type AccountLike = {
-	account?: { business_profile?: { name?: string | null } | null } | null;
-};
-
 export default async function Image(props: { params: Promise<{ slug: string }> }) {
 	const { slug } = await props.params;
 	const locale = await getLocale();
@@ -32,13 +30,24 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
 
 	if (env.STRIPE_SECRET_KEY) {
 		try {
-			const mod = await import("commerce-kit");
+			const stripe = getStripeClient();
 			const [accountResult, productArray] = await Promise.all([
-				mod.accountGet() as Promise<AccountLike>,
-				mod.productGet({ slug }) as Promise<ProductLike[]>, // <-- fix: returns an array
+				stripe.accounts.retrieve(),
+				productGet({ slug }),
 			]);
-			accountName = accountResult?.account?.business_profile?.name ?? accountName;
-			product = productArray?.[0] ?? null;
+			accountName = accountResult?.business_profile?.name ?? accountName;
+			const candidate = productArray?.[0];
+			if (candidate) {
+				product = {
+					name: candidate.name,
+					description: candidate.description,
+					images: Array.isArray(candidate.images) ? candidate.images : [],
+					default_price: {
+						unit_amount: candidate.default_price?.unit_amount ?? null,
+						currency: candidate.default_price?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY ?? "USD",
+					},
+				};
+			}
 		} catch (e) {
 			console.warn("opengraph-image: failed to load commerce data, falling back.", e);
 		}

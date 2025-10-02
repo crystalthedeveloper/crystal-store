@@ -1,6 +1,8 @@
 // src/lib/products/getWebflowProductData.ts
-import * as Commerce from "commerce-kit";
-import type { KitPrice, KitProduct } from "./getProductWithPrices";
+import type Stripe from "stripe";
+
+import { env } from "@/env.mjs";
+import { provider, type KitPrice, type KitProduct } from "@/lib/stripe/commerce";
 
 type ProductMetadata = {
 	category?: string;
@@ -44,59 +46,56 @@ function hasAnyOptional(meta?: ProductMetadata) {
 	);
 }
 
-/** Narrow `unknown` to an object with a (string→string) metadata map. */
 function hasStringRecordMetadata(v: unknown): v is { metadata?: Record<string, string> } {
 	if (!v || typeof v !== "object") return false;
 	const md = (v as { metadata?: unknown }).metadata;
-	if (md == null) return true; // allow undefined/null metadata
+	if (md == null) return true;
 	if (typeof md !== "object") return false;
-	// shallow check
 	for (const [k, val] of Object.entries(md as Record<string, unknown>)) {
 		if (typeof k !== "string" || (val != null && typeof val !== "string")) return false;
 	}
 	return true;
 }
 
-/**
- * Pull Webflow extras from product + price metadata.
- * If productGet() didn’t include the optional fields, refetch from Stripe as a fallback.
- */
+function sanitizeMetadata(metadata: unknown): ProductMetadata {
+	const result: ProductMetadata = {};
+	if (!metadata || typeof metadata !== "object") return result;
+	for (const [key, value] of Object.entries(metadata as Record<string, unknown>)) {
+		if (typeof value === "string") {
+			result[key] = value;
+		}
+	}
+	return result;
+}
+
 export async function getWebflowSelections(
 	product: KitProduct,
 	selectedPrice?: KitPrice,
 ): Promise<WebflowSelections> {
-	// Base metadata we got from productGet()
-	let productMeta = (product?.metadata ?? {}) as ProductMetadata;
-	let priceMetaRaw = (selectedPrice?.metadata ?? {}) as ProductMetadata;
+	let productMeta = sanitizeMetadata(product.metadata);
+	let priceMetaRaw = sanitizeMetadata(selectedPrice?.metadata);
 
-	// Determine webflow category from product (or price only if product is missing it)
 	const isWebflow =
 		norm(productMeta.category) === "webflow" ||
 		(!productMeta.category && norm(priceMetaRaw.category) === "webflow");
 
-	// If it is a Webflow product but we didn’t receive any optional fields, refetch raw from Stripe
-	if (isWebflow && !hasAnyOptional(productMeta) && !hasAnyOptional(priceMetaRaw)) {
+	if (isWebflow && !hasAnyOptional(productMeta) && !hasAnyOptional(priceMetaRaw) && env.STRIPE_SECRET_KEY) {
 		try {
-			const { env } = await import("@/env.mjs");
-			const stripe = Commerce.provider({ secretKey: env.STRIPE_SECRET_KEY, tagPrefix: undefined });
-
-			// Get the raw Stripe product (with default_price expanded)
+			const stripe = provider({ secretKey: env.STRIPE_SECRET_KEY, tagPrefix: undefined });
 			const raw = await stripe.products.retrieve(product.id, { expand: ["default_price"] });
 
-			productMeta = { ...(raw.metadata as ProductMetadata) };
+			productMeta = sanitizeMetadata(raw.metadata);
 
-			// Populate price meta from Stripe default_price if caller didn’t pass a selected price
 			if (!selectedPrice && raw.default_price && hasStringRecordMetadata(raw.default_price)) {
-				priceMetaRaw = { ...(raw.default_price.metadata ?? {}) };
+				priceMetaRaw = sanitizeMetadata(raw.default_price.metadata ?? {});
 			}
-		} catch (e) {
+		} catch (error) {
 			if (process.env.NODE_ENV !== "production") {
-				console.warn("Webflow fallback fetch failed:", e);
+				console.warn("Webflow fallback fetch failed:", error);
 			}
 		}
 	}
 
-	// Merge (price wins), but never let price override identity/category
 	const { category: _ignore, ...priceMeta } = priceMetaRaw;
 	const merged: ProductMetadata = { ...productMeta, ...priceMeta };
 
@@ -116,7 +115,6 @@ export async function getWebflowSelections(
 	if (isLikelyUrl(github_url))
 		links.push({ kind: "github", href: withProto(github_url), label: "View on GitHub" });
 
-	// Features → pairs; if not pair-formatted, show as a single card
 	let featurePairs = parseFeaturePairs(features);
 	if (!featurePairs.length && features) featurePairs = [{ title: "Features", text: features }];
 

@@ -5,8 +5,9 @@ import "@/app/globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartModalProvider } from "@/context/cart-modal";
 import { env } from "@/env.mjs";
-import { Footer } from "@/ui/footer/footer";
+import { getStripeClient } from "@/lib/stripe/client";
 import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
+import { Footer } from "@/ui/footer/footer";
 import { Nav } from "@/ui/nav/nav";
 import { CartModalPage } from "./cart/cart-modal";
 
@@ -14,56 +15,32 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type SignedLink = { url?: string | null; expired?: boolean } | null | undefined;
-type LogoRef = {
-	id?: string | null;
-	links?: { data?: SignedLink[] | null } | null;
-} | null;
-
-type AccountGetShape = {
-	account?: Stripe.Account | null;
-	logo?: LogoRef;
-} | null;
-
-type FileGetPlain = { url?: string | null } | null;
-type FileGetWrapped = { data?: { url?: string | null } | null } | null;
-type FileGetShape = FileGetPlain | FileGetWrapped;
-
-function extractFileUrl(file: unknown): string | undefined {
-	if (!file || typeof file !== "object") return undefined;
-	if ("url" in file) {
-		const u = (file as { url?: string | null }).url;
-		return u ?? undefined;
+async function getAccountAndLogo(): Promise<{ account: Stripe.Account | null; logoUrl?: string }> {
+	if (!env.STRIPE_SECRET_KEY) {
+		return { account: null, logoUrl: undefined };
 	}
-	if ("data" in file) {
-		const data = (file as { data?: { url?: string | null } | null }).data ?? null;
-		return data?.url ?? undefined;
+
+	try {
+		const stripe = getStripeClient();
+		const response = await stripe.accounts.retrieve();
+		const account = response as unknown as Stripe.Account;
+
+		const rawLogo = account.settings?.branding?.logo ?? null;
+		const logoId = typeof rawLogo === "string" ? rawLogo : null;
+		if (!logoId) {
+			return { account, logoUrl: undefined };
+		}
+
+		const link = await stripe.fileLinks.create({ file: logoId });
+		return { account, logoUrl: link.url ?? undefined };
+	} catch (error) {
+		console.warn("StoreLayout: failed to load account/logo from Stripe.", error);
+		return { account: null, logoUrl: undefined };
 	}
-	return undefined;
 }
 
 export default async function StoreLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-	let accountResult: AccountGetShape = null;
-	let logoUrl: string | undefined;
-
-	if (env.STRIPE_SECRET_KEY) {
-		try {
-			const { accountGet, fileGet } = await import("commerce-kit");
-			accountResult = await accountGet();
-
-			const liveLink = accountResult?.logo?.links?.data?.find((l) => l && !l.expired);
-			if (liveLink?.url) {
-				logoUrl = liveLink.url ?? undefined;
-			} else if (accountResult?.logo?.id) {
-				const file = (await fileGet(accountResult.logo.id)) as unknown as FileGetShape;
-				logoUrl = extractFileUrl(file);
-			}
-		} catch (e) {
-			console.warn("StoreLayout: failed to load account/logo via commerce-kit.", e);
-		}
-	} else {
-		console.warn("StoreLayout: STRIPE_SECRET_KEY missing; rendering without account metadata.");
-	}
+	const { account, logoUrl } = await getAccountAndLogo();
 
 	return (
 		<>
@@ -78,12 +55,7 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 				</TooltipProvider>
 			</CartModalProvider>
 
-			<JsonLd
-				jsonLd={accountToWebsiteJsonLd({
-					account: accountResult?.account ?? null,
-					logoUrl: logoUrl ?? null,
-				})}
-			/>
+			<JsonLd jsonLd={accountToWebsiteJsonLd({ account, logoUrl: logoUrl ?? null })} />
 		</>
 	);
 }

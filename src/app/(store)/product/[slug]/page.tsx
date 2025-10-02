@@ -20,7 +20,7 @@ import { getVariantSelections } from "@/lib/products/getVariantSelections";
 import { getWebflowSelections } from "@/lib/products/getWebflowProductData";
 import { deslugify, formatProductName } from "@/lib/utils";
 import { AddToCartButton } from "@/ui/add-to-cart-button";
-import { JsonLd, mappedProductToJsonLd } from "@/ui/json-ld";
+import { JsonLd, mappedProductToJsonLd, type NormalizedProduct } from "@/ui/json-ld";
 import { Markdown } from "@/ui/markdown";
 import { MainProductImage } from "@/ui/products/main-product-image";
 import { PriceLabel } from "@/ui/products/PriceLabel";
@@ -157,13 +157,37 @@ export default async function SingleProductPage(props: {
 	const { isWebflow, links, featurePairs, license } = webflow;
 
 	const displayAmount = selectedPrice?.unit_amount ?? product.default_price?.unit_amount ?? null;
-	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? undefined;
+	const displayCurrency = selectedPrice?.currency ?? product.default_price?.currency ?? env.STRIPE_CURRENCY ?? "usd";
 
 	// ✅ Fix disable flag logic
 	const forceDisabled = disable === "true";
 
 	// ✅ Parse stock safely from metadata
 	const stock = Number(product.metadata?.stock ?? Infinity);
+
+	const stickyProduct = {
+		id: product.id,
+		name: product.name,
+		images,
+		metadata: { ...(product.metadata ?? {}) },
+		default_price: {
+			id: selectedPrice?.id ?? (product.default_price?.id ?? undefined),
+			unit_amount: displayAmount,
+			currency: displayCurrency.toString().toUpperCase(),
+		},
+	};
+
+	const normalizedForJsonLd: NormalizedProduct = {
+		id: product.id,
+		name: product.name,
+		description: product.description,
+		images: Array.isArray(product.images) ? product.images : [],
+		metadata: { ...(product.metadata ?? {}) },
+		default_price: {
+			unit_amount: displayAmount,
+			currency: displayCurrency.toString().toUpperCase(),
+		},
+	};
 
 	return (
 		<article className="pb-12">
@@ -221,7 +245,7 @@ export default async function SingleProductPage(props: {
 				</BreadcrumbList>
 			</Breadcrumb>
 
-			<StickyBottom product={product} locale={locale}>
+			<StickyBottom product={stickyProduct} locale={locale}>
 				<div className="mt-4 grid gap-4 lg:grid-cols-12">
 					<div className="lg:col-span-5 lg:col-start-8">
 						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
@@ -315,7 +339,7 @@ export default async function SingleProductPage(props: {
 				<ProductImageModal images={images} />
 			</Suspense>
 
-			<JsonLd jsonLd={mappedProductToJsonLd(product)} />
+			<JsonLd jsonLd={mappedProductToJsonLd(normalizedForJsonLd)} />
 		</article>
 	);
 }

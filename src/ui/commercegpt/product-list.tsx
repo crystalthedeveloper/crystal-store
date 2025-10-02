@@ -1,11 +1,11 @@
 "use client";
 
-import type * as Commerce from "commerce-kit";
 import Image from "next/image";
 import { formatMoney } from "@/lib/utils";
+import type { MappedProduct } from "@/lib/stripe/commerce";
 import { YnsLink } from "@/ui/yns-link";
 
-export const ProductList = ({ products }: { products: Commerce.MappedProduct[] }) => {
+export const ProductList = ({ products }: { products: MappedProduct[] }) => {
 	return (
 		<>
 			<ul className="max-w-(--breakpoint-lg) grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">

@@ -4,6 +4,7 @@ import getConfig from "next/config";
 import Image from "next/image";
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
+import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
 import StoreConfig from "@/store.config";
 import { CategoryBox } from "@/ui/category-box";
 import { ProductList } from "@/ui/products/product-list";
@@ -17,12 +18,7 @@ export const metadata: Metadata = {
 	alternates: { canonical: publicUrl },
 };
 
-// 🔧 Infer the element type returned by commerce-kit’s productBrowse
-type ProductFromBrowse = Awaited<
-	ReturnType<typeof import("commerce-kit")["productBrowse"]>
-> extends (infer T)[]
-	? T
-	: never;
+type ProductFromBrowse = MappedProduct;
 
 // pull runtime config
 const { publicRuntimeConfig } = getConfig();
@@ -100,11 +96,13 @@ export default async function Home() {
 		);
 	}
 
-	// Stripe exists: load commerce-kit dynamically
+	// Stripe exists: load products directly from Stripe
 	let products: ProductFromBrowse[] = [];
 	try {
-		const { productBrowse } = await import("commerce-kit");
-		products = await productBrowse({ first: 6 });
+		const allProducts = await productBrowse({ first: 24 });
+		products = allProducts
+			.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))
+			.slice(0, 6);
 	} catch (e) {
 		console.warn("Home: productBrowse failed; rendering without products.", e);
 	}

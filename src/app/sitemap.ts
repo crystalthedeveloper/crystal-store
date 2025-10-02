@@ -2,16 +2,14 @@
 import type { MetadataRoute } from "next";
 import { env, publicUrl } from "@/env.mjs";
 import StoreConfig from "@/store.config";
+import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Item = MetadataRoute.Sitemap[number];
 
-type ProductLite = {
-	updated?: number;
-	metadata?: { slug?: string | null; [k: string]: unknown };
-};
+type ProductLite = MappedProduct & { updated?: number };
 
 function hasSlug(p: ProductLite): p is ProductLite & { metadata: { slug: string } } {
 	return typeof p?.metadata?.slug === "string" && p.metadata.slug.length > 0;
@@ -22,7 +20,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 	try {
 		if (env.STRIPE_SECRET_KEY) {
-			const { productBrowse } = await import("commerce-kit");
 			const products = (await productBrowse({
 				first: 100,
 			})) as unknown as ProductLite[];

@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
+import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
 import { ProductList } from "@/ui/products/product-list";
 
 export const runtime = "nodejs"; // server-only libs
@@ -16,12 +17,7 @@ export const generateMetadata = async (): Promise<Metadata> => {
 	};
 };
 
-// Infer the element type from commerce-kit's productBrowse without loading it now
-type ProductFromBrowse = Awaited<
-	ReturnType<typeof import("commerce-kit")["productBrowse"]>
-> extends (infer T)[]
-	? T
-	: never;
+type ProductFromBrowse = MappedProduct;
 
 export default async function AllProductsPage() {
 	const t = await getTranslations("/products.page");
@@ -38,10 +34,9 @@ export default async function AllProductsPage() {
 		);
 	}
 
-	// Stripe exists: load commerce-kit dynamically
+	// Stripe exists: load product catalog directly from Stripe
 	let products: ProductFromBrowse[] = [];
 	try {
-		const { productBrowse } = await import("commerce-kit");
 		products = await productBrowse({ first: 100 });
 	} catch (e) {
 		console.warn("AllProductsPage: productBrowse failed; rendering without products.", e);
