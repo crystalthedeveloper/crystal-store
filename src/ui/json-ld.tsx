@@ -1,15 +1,33 @@
-import type * as Commerce from "commerce-kit";
+// src/ui/json-ld.tsx
 import { getDecimalFromStripeAmount } from "commerce-kit/currencies";
 import type { ItemList, Product, Thing, WebSite, WithContext } from "schema-dts";
 import type Stripe from "stripe";
 import { formatProductName } from "@/lib/utils";
 
+// ✅ Normalized type we send from CategoryPage → ProductList
+export type NormalizedProduct = {
+	id: string;
+	name: string;
+	description?: string | null;
+	images: string[];
+	metadata: {
+		slug?: string;
+		variant?: string;
+		stock?: number | string;
+		[key: string]: string | number | boolean | null | undefined;
+	};
+	default_price: {
+		unit_amount: number | null;
+		currency: string;
+	};
+};
+
 export const JsonLd = <T extends Thing>({ jsonLd }: { jsonLd: WithContext<T> }) => {
 	return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />;
 };
 
-export const mappedProductToJsonLd = (product: Commerce.MappedProduct): WithContext<Product> => {
-	const productName = formatProductName(product.name, product.metadata.variant);
+export const mappedProductToJsonLd = (product: NormalizedProduct): WithContext<Product> => {
+	const productName = formatProductName(product.name, product.metadata?.variant);
 
 	return {
 		"@context": "https://schema.org",
@@ -26,14 +44,14 @@ export const mappedProductToJsonLd = (product: Commerce.MappedProduct): WithCont
 			}),
 			priceCurrency: product.default_price.currency,
 			availability:
-				product.metadata.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+				Number(product.metadata?.stock ?? 0) > 0
+					? "https://schema.org/InStock"
+					: "https://schema.org/OutOfStock",
 		},
 	};
 };
 
-export const mappedProductsToJsonLd = (
-	products: readonly Commerce.MappedProduct[],
-): WithContext<ItemList> => {
+export const mappedProductsToJsonLd = (products: readonly NormalizedProduct[]): WithContext<ItemList> => {
 	return {
 		"@context": "https://schema.org",
 		"@type": "ItemList",

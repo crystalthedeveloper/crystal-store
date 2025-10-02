@@ -11,7 +11,7 @@ if (!env.STRIPE_SECRET_KEY) {
 
 // ✅ Use a valid Stripe API version (update when Stripe releases new versions)
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-	apiVersion: "2025-07-30.basil",
+	apiVersion: "2025-09-30.clover",
 });
 
 // Strong type for supported currencies

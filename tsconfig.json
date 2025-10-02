@@ -1,31 +1,42 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig.json",
 	"compilerOptions": {
+		/* Language and environment */
 		"target": "ES2022",
 		"lib": ["dom", "dom.iterable", "esnext"],
-		"allowJs": true,
-		"skipLibCheck": true,
+
+		/* Type safety & build behavior */
 		"strict": true,
+		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
+		"noUncheckedIndexedAccess": true,
 		"noEmit": true,
-		"esModuleInterop": true,
+		"isolatedModules": true,
+		"incremental": true,
+
+		/* Module resolution */
 		"module": "esnext",
 		"moduleResolution": "Bundler",
+		"esModuleInterop": true,
 		"resolveJsonModule": true,
-		"isolatedModules": true,
 		"jsx": "preserve",
-		"incremental": true,
+
+		/* Code style / diagnostics */
+		"allowJs": true,
 		"allowUnreachableCode": true,
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noUncheckedIndexedAccess": true,
+
+		/* Path aliases */
 		"baseUrl": ".",
-		"plugins": [{ "name": "next" }],
 		"paths": {
 			"@/*": ["./src/*"],
 			"@ui/*": ["./src/ui/*"],
 			"@/components/ui/*": ["./src/ui/shadcn/*"]
-		}
+		},
+
+		/* Next.js plugin */
+		"plugins": [{ "name": "next" }]
 	},
 	"include": ["next-fix.d.ts", "i18n.d.ts", "**/*.mjs", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
 	"exclude": ["node_modules", "src/script/**/*.ts", "next.config.ts"]

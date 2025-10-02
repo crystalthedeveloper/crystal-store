@@ -214,9 +214,7 @@ export default async function SingleProductPage(props: {
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
-								<BreadcrumbPage>
-									{[selectedColor, selectedSize].filter(Boolean).join(" / ")}
-								</BreadcrumbPage>
+								<BreadcrumbPage>{[selectedColor, selectedSize].filter(Boolean).join(" / ")}</BreadcrumbPage>
 							</BreadcrumbItem>
 						</>
 					)}
@@ -228,9 +226,7 @@ export default async function SingleProductPage(props: {
 					<div className="lg:col-span-5 lg:col-start-8">
 						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
 						<PriceLabel amount={displayAmount} currency={displayCurrency} locale={locale} />
-						<div className="mt-2">
-							{stock <= 0 && <div>Out of stock</div>}
-						</div>
+						<div className="mt-2">{stock <= 0 && <div>Out of stock</div>}</div>
 					</div>
 
 					<div className="lg:col-span-7 lg:row-span-3 lg:row-start-1">

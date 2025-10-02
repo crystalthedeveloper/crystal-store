@@ -9,7 +9,7 @@ if (!env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-	apiVersion: "2025-07-30.basil", // ✅ stable API version
+	apiVersion: "2025-09-30.clover", // ✅ stable API version
 });
 
 /**

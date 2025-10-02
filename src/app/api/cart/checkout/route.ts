@@ -41,9 +41,9 @@ export async function POST(req: Request) {
 
 		// ✅ Lock to Stripe’s pinned API version
 		const stripe = new Stripe(stripeSecret, {
-			apiVersion: "2025-07-30.basil",
+			apiVersion: "2025-09-30.clover",
 		});
-		console.log("✅ Stripe initialized with version 2025-07-30.basil");
+		console.log("✅ Stripe initialized with version 2025-09-30.clover");
 
 		// ✅ Build Stripe line items
 		const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.map((item) => ({

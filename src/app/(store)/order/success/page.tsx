@@ -21,7 +21,7 @@ export const generateMetadata = async (): Promise<Metadata> => {
 type NextSearchParams = Record<string, string | string[] | undefined>;
 
 const stripe = env.STRIPE_SECRET_KEY
-	? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2025-07-30.basil" })
+	? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2025-09-30.clover" })
 	: null;
 
 export default async function OrderDetailsPage({

@@ -1,7 +1,7 @@
 declare global {
-  interface Window {
-    grecaptcha: any;
-  }
+	interface Window {
+		grecaptcha: any;
+	}
 }
 export declare const FormWrapper: any;
 export declare const FormForm: any;

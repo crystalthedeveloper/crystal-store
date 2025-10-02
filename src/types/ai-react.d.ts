@@ -1,1 +1,1 @@
-declare module 'ai/react';
+declare module "ai/react";

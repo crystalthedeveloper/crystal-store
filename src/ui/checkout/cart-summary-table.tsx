@@ -85,24 +85,17 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 										>
 											{formatProductName(
 												line.name,
-												[line.metadata?.color, line.metadata?.size, line.variant]
-													.filter(Boolean)
-													.join(" / "),
+												[line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean).join(" / "),
 											)}
 										</YnsLink>
 									</TableCell>
-									<TableCell>
-										{formatMoney({ amount: line.price, currency, locale })}
-									</TableCell>
+									<TableCell>{formatMoney({ amount: line.price, currency, locale })}</TableCell>
 									<TableCell>
 										<div className="flex items-center gap-2">
 											<button onClick={() => updateQuantity(line, "DECREASE")}>–</button>
 											{line.quantity}
 											<button onClick={() => updateQuantity(line, "INCREASE")}>+</button>
-											<button
-												className="ml-2 text-xs text-red-500"
-												onClick={() => removeItem(line)}
-											>
+											<button className="ml-2 text-xs text-red-500" onClick={() => removeItem(line)}>
 												✕
 											</button>
 										</div>
@@ -130,18 +123,14 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 							<TableCell colSpan={3} className="text-right">
 								{t("shipping")}
 							</TableCell>
-							<TableCell className="text-right text-muted-foreground">
-								{t("calculatedAtCheckout")}
-							</TableCell>
+							<TableCell className="text-right text-muted-foreground">{t("calculatedAtCheckout")}</TableCell>
 						</TableRow>
 						<TableRow>
 							<TableCell />
 							<TableCell colSpan={3} className="text-right">
 								{t("taxes")}
 							</TableCell>
-							<TableCell className="text-right text-muted-foreground">
-								{t("calculatedAtCheckout")}
-							</TableCell>
+							<TableCell className="text-right text-muted-foreground">{t("calculatedAtCheckout")}</TableCell>
 						</TableRow>
 						<TableRow className="text-lg font-bold">
 							<TableCell />
@@ -161,10 +150,7 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 				{lines.map((line: CartLine) => {
 					const lineTotal = line.price * line.quantity;
 					return (
-						<div
-							key={`${line.id}-${line.priceId}`}
-							className="flex gap-3 rounded-lg border p-3 shadow-sm"
-						>
+						<div key={`${line.id}-${line.priceId}`} className="flex gap-3 rounded-lg border p-3 shadow-sm">
 							{line.image ? (
 								<Image
 									className="h-20 w-20 rounded-md object-cover"
@@ -177,38 +163,24 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 								<div className="h-20 w-20 rounded-md bg-neutral-100" />
 							)}
 							<div className="flex flex-1 flex-col justify-between">
-								<YnsLink
-									className="font-medium hover:text-muted-foreground"
-									href={`/product/${line.id}`}
-								>
+								<YnsLink className="font-medium hover:text-muted-foreground" href={`/product/${line.id}`}>
 									{formatProductName(
 										line.name,
-										[line.metadata?.color, line.metadata?.size, line.variant]
-											.filter(Boolean)
-											.join(" / "),
+										[line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean).join(" / "),
 									)}
 								</YnsLink>
 								<div className="text-sm text-muted-foreground">
 									{formatMoney({ amount: line.price, currency, locale })} × {line.quantity}
 								</div>
 								<div className="mt-1 flex items-center gap-2 text-sm">
-									<button
-										className="rounded border px-2"
-										onClick={() => updateQuantity(line, "DECREASE")}
-									>
+									<button className="rounded border px-2" onClick={() => updateQuantity(line, "DECREASE")}>
 										–
 									</button>
 									{line.quantity}
-									<button
-										className="rounded border px-2"
-										onClick={() => updateQuantity(line, "INCREASE")}
-									>
+									<button className="rounded border px-2" onClick={() => updateQuantity(line, "INCREASE")}>
 										+
 									</button>
-									<button
-										className="ml-auto text-xs text-red-500"
-										onClick={() => removeItem(line)}
-									>
+									<button className="ml-auto text-xs text-red-500" onClick={() => removeItem(line)}>
 										✕
 									</button>
 								</div>

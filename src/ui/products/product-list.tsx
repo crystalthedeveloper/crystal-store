@@ -1,11 +1,11 @@
-import type * as Commerce from "commerce-kit";
+// src/ui/products/product-list.tsx
 import Image from "next/image";
 import { getLocale } from "@/i18n/server";
 import { formatMoney } from "@/lib/utils";
-import { JsonLd, mappedProductsToJsonLd } from "@/ui/json-ld";
+import { JsonLd, mappedProductsToJsonLd, type NormalizedProduct } from "@/ui/json-ld";
 import { YnsLink } from "@/ui/yns-link";
 
-export const ProductList = async ({ products }: { products: Commerce.MappedProduct[] }) => {
+export const ProductList = async ({ products }: { products: NormalizedProduct[] }) => {
 	const locale = await getLocale();
 
 	return (
@@ -13,16 +13,16 @@ export const ProductList = async ({ products }: { products: Commerce.MappedProdu
 			<ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 				{products.map((product, idx) => (
 					<li key={product.id} className="group">
-						<YnsLink href={`/product/${product.metadata.slug}`}>
+						<YnsLink href={`/product/${product.metadata?.slug ?? product.id}`}>
 							<article>
 								{product.images[0] && (
 									<div className="aspect-square w-full overflow-hidden bg-neutral-100 rounded-lg">
 										<Image
 											className="
-												w-full h-full object-cover object-center 
-												transition-transform duration-500 
-												group-hover:scale-105 group-hover:rotate-1 group-hover:opacity-80
-											"
+                        w-full h-full object-cover object-center 
+                        transition-transform duration-500 
+                        group-hover:scale-105 group-hover:rotate-1 group-hover:opacity-80
+                      "
 											src={product.images[0]}
 											width={768}
 											height={768}
