@@ -75,20 +75,33 @@ export default function CheckoutForm({
 	};
 
 	return (
-		<section className="max-w-md pb-12">
+		<section className="max-w-md pb-12" aria-busy={loading} aria-live="polite">
 			<h2 className="text-3xl font-bold leading-none tracking-tight">{title}</h2>
 			<p className="mb-4 mt-2 text-sm text-muted-foreground">{description}</p>
 
-			{errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+			{errorMessage && (
+				<p role="alert" className="text-sm text-red-500">
+					{errorMessage}
+				</p>
+			)}
 
 			<Button
 				type="button"
 				variant="outline"
 				className="w-full rounded-full text-lg"
 				disabled={loading}
+				aria-disabled={loading}
 				onClick={handleCheckoutRedirect}
 			>
-				{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Next (Stripe Checkout)"}
+				{loading ? (
+					<span className="inline-flex items-center">
+						<Loader2 aria-hidden className="mr-2 h-4 w-4 animate-spin" />
+						<span className="sr-only">Processing checkout…</span>
+						Next (Stripe Checkout)
+					</span>
+				) : (
+					"Next (Stripe Checkout)"
+				)}
 			</Button>
 		</section>
 	);
