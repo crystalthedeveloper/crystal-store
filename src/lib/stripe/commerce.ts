@@ -97,9 +97,9 @@ function toMappedProduct(product: KitProduct): MappedProduct {
 		images: Array.isArray(product.images) ? product.images : [],
 		metadata: product.metadata,
 		default_price: {
-			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : (product.default_price?.id ?? ""),
+			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : product.default_price?.id ?? "",
 			unit_amount: defaultPrice?.unit_amount ?? null,
-			currency: defaultPrice?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY ?? "USD",
+			currency: defaultPrice?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY,
 		},
 		updated: typeof product.updated === "number" ? product.updated : 0,
 	};
@@ -115,12 +115,17 @@ function buildCategoryQuery(category: string): string {
 }
 
 async function searchProducts(stripe: Stripe, query: string, limit: number): Promise<Stripe.Product[]> {
-	const response = await stripe.products.search({
-		query,
-		limit: Math.min(Math.max(limit, 1), 100),
-		expand: ["data.default_price"],
-	});
-	return response.data;
+	try {
+		const response = await stripe.products.search({
+			query,
+			limit: Math.min(Math.max(limit, 1), 100),
+			expand: ["data.default_price"],
+		});
+		return response.data;
+	} catch (error) {
+		console.warn("Stripe product search failed; falling back to manual filtering", error);
+		throw error;
+	}
 }
 
 async function listProducts(stripe: Stripe, limit: number): Promise<Stripe.Product[]> {
@@ -144,8 +149,17 @@ async function findProductBySlug(stripe: Stripe, slug: string): Promise<Stripe.P
 	}
 
 	const query = `active:'true' AND ${buildMetadataQuery("slug", slug)}`;
-	const results = await searchProducts(stripe, query, 1);
-	return results[0] ?? null;
+	try {
+		const results = await searchProducts(stripe, query, 1);
+		if (results[0]) return results[0];
+	} catch {
+		// fall through to manual filtering below
+	}
+
+	const listed = await listProducts(stripe, 100);
+	return (
+		listed.find((product) => (product.metadata?.slug ?? "").toLowerCase() === slug.toLowerCase()) ?? null
+	);
 }
 
 export async function productBrowse(params: ProductBrowseParams = {}): Promise<MappedProduct[]> {
@@ -155,7 +169,13 @@ export async function productBrowse(params: ProductBrowseParams = {}): Promise<M
 
 	let products: Stripe.Product[] = [];
 	if (params.filter?.category) {
-		products = await searchProducts(stripe, buildCategoryQuery(params.filter.category), limit);
+		try {
+			products = await searchProducts(stripe, buildCategoryQuery(params.filter.category), limit);
+		} catch {
+			const lowered = params.filter.category.toLowerCase();
+			const listed = await listProducts(stripe, limit);
+			products = listed.filter((product) => (product.metadata?.category ?? "").toLowerCase() === lowered);
+		}
 	} else {
 		products = await listProducts(stripe, limit);
 	}

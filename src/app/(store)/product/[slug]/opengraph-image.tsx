@@ -44,7 +44,7 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
 					images: Array.isArray(candidate.images) ? candidate.images : [],
 					default_price: {
 						unit_amount: candidate.default_price?.unit_amount ?? null,
-						currency: candidate.default_price?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY ?? "USD",
+						currency: candidate.default_price?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY,
 					},
 				};
 			}
@@ -59,7 +59,7 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
 		name: "Product preview",
 		description: "This is a preview image. Configure Stripe to show live product info.",
 		images: ["/crystalthedeveloper-logo.png"],
-		default_price: { unit_amount: 0, currency: "USD" },
+		default_price: { unit_amount: 0, currency: env.STRIPE_CURRENCY },
 	};
 
 	const p = product ?? fallbackProduct;
