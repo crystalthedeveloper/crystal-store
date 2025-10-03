@@ -45,7 +45,7 @@ export default async function Home() {
 								<h2 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">
 									Shop, Style, Create — and Support the Dev
 								</h2>
-							<p className="text-pretty text-neutral-600 leading-relaxed">
+								<p className="text-pretty text-neutral-600 leading-relaxed">
 									Store preview is disabled in this environment (Stripe is not configured).
 								</p>
 

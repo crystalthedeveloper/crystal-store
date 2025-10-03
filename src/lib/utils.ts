@@ -85,8 +85,95 @@ export const deslugify = (slug: string) =>
 		.map((part) => capitalize(part))
 		.join(" ");
 
-export const formatProductName = (name: string, variant?: string) =>
-	variant ? `${name} (${deslugify(variant)})` : name;
+type VariantInput = string | null | undefined | (string | null | undefined)[];
+
+const normalizeVariantPart = (part: string) => {
+	const trimmed = part.trim();
+	if (!trimmed) return "";
+
+	const hyphenNormalized = trimmed.replace(/_/g, "-");
+	if (hyphenNormalized.includes("-")) {
+		const slug = hyphenNormalized
+			.split("-")
+			.map((piece) => piece.trim())
+			.filter(Boolean)
+			.join("-")
+			.toLowerCase();
+		return deslugify(slug);
+	}
+
+	if (/^[a-z]+$/i.test(trimmed)) {
+		if (trimmed.length <= 3) {
+			return trimmed.toUpperCase();
+		}
+		if (trimmed === trimmed.toLowerCase()) {
+			return capitalize(trimmed);
+		}
+	}
+
+	return trimmed;
+};
+
+const mergeVariantParts = (variant?: VariantInput): string[] => {
+	if (!variant) return [];
+
+	const parts = (Array.isArray(variant) ? variant : [variant])
+		.flatMap((entry) => (entry ?? "").split("/"))
+		.map((entry) => entry.trim())
+		.filter(Boolean)
+		.map(normalizeVariantPart)
+		.filter((entry): entry is string => Boolean(entry));
+
+	const seen = new Set<string>();
+	const unique: string[] = [];
+	for (const part of parts) {
+		const key = part.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		unique.push(part);
+	}
+
+	return unique;
+};
+
+const mergeUniqueVariantParts = (existing: string[], additional: string[]): string[] => {
+	if (additional.length === 0) return existing;
+
+	const seen = new Set(existing.map((part) => part.toLowerCase()));
+	const merged = [...existing];
+
+	for (const part of additional) {
+		const key = part.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		merged.push(part);
+	}
+
+	return merged;
+};
+
+export const formatProductName = (name: string, variant?: VariantInput) => {
+	const trimmedName = name.trim();
+	const variantParts = mergeVariantParts(variant);
+	if (variantParts.length === 0) {
+		return trimmedName;
+	}
+
+	const trailingVariantMatch = trimmedName.match(/^(.*?)(?:\s*\(([^()]+)\))$/);
+	if (!trailingVariantMatch) {
+		return `${trimmedName} (${variantParts.join(" / ")})`;
+	}
+
+	const [, baseName, existingVariantRaw] = trailingVariantMatch;
+	const existingParts = mergeVariantParts(existingVariantRaw);
+	const mergedParts = mergeUniqueVariantParts(existingParts, variantParts);
+
+	if (mergedParts.length === 0) {
+		return baseName.trim();
+	}
+
+	return `${baseName.trim()} (${mergedParts.join(" / ")})`;
+};
 
 export function invariant(condition: unknown, message: string): asserts condition {
 	if (!condition) throw new Error(message);

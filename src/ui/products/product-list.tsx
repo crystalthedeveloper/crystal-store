@@ -44,7 +44,7 @@ export const ProductList = async ({ products }: { products: NormalizedProduct[] 
 													amount: product.default_price.unit_amount,
 													currency: product.default_price.currency,
 													locale,
-											})}
+												})}
 											</p>
 										)}
 									</footer>

@@ -23,6 +23,32 @@ type CartItem = {
 	currency?: string;
 };
 
+const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
+	const out: Record<string, string> = {};
+	if (!input) return out;
+	for (const [key, value] of Object.entries(input)) {
+		if (typeof value === "string" && value.trim() !== "") {
+			out[key] = value;
+		}
+	}
+	return out;
+};
+
+const mergeMetadata = (
+	...sources: Array<Record<string, string | undefined> | undefined>
+): Record<string, string> => {
+	const merged: Record<string, string> = {};
+	for (const source of sources) {
+		if (!source) continue;
+		for (const [key, value] of Object.entries(source)) {
+			if (typeof value === "string" && value.trim() !== "") {
+				merged[key] = value;
+			}
+		}
+	}
+	return merged;
+};
+
 export async function POST(req: Request) {
 	try {
 		const body = (await req.json()) as { cart?: CartItem[] };
@@ -42,7 +68,7 @@ export async function POST(req: Request) {
 			cart.map(async (item) => {
 				let price: Stripe.Price | null = null;
 				if (item.priceId) {
-					price = await stripe.prices.retrieve(item.priceId);
+					price = await stripe.prices.retrieve(item.priceId, { expand: ["product"] });
 				}
 				const isSubscription = price?.type === "recurring";
 				return { item, price, isSubscription };
@@ -51,16 +77,12 @@ export async function POST(req: Request) {
 
 		const makeLineItem = (entry: (typeof detailedItems)[number]) => {
 			const { item } = entry;
-			const baseName = item.name || "Item";
-			const variantLabel = item.variantLabel?.trim() || "";
-			const displayName = item.displayName || (variantLabel ? `${baseName} (${variantLabel})` : baseName);
-			const currency = (item.currency || "cad").toLowerCase();
-
-			const productMetadata = {
-				...(item.metadata ?? {}),
-				base_name: baseName,
-				...(variantLabel ? { variant_label: variantLabel } : {}),
-			};
+			if (item.priceId) {
+				return {
+					price: item.priceId,
+					quantity: item.quantity,
+				};
+			}
 
 			return {
 				price_data: {
@@ -76,8 +98,48 @@ export async function POST(req: Request) {
 			};
 		};
 
-		const subscriptionItems = detailedItems.filter((e) => e.isSubscription).map(makeLineItem);
-		const oneTimeItems = detailedItems.filter((e) => !e.isSubscription).map(makeLineItem);
+		const subscriptionLineItems = subscriptionItems.map(makeLineItem);
+		const oneTimeLineItems = oneTimeItems.map(makeLineItem);
+
+		if (subscriptionLineItems.length > 0 && subscriptionLineItems.some((li) => !("price" in li))) {
+			return NextResponse.json(
+				{ error: "Subscription items must reference a Stripe price" },
+				{ status: 400 },
+			);
+		}
+
+		if (subscriptionLineItems.length > 0 && oneTimeLineItems.length > 0) {
+			const subscriptionSession = await stripe.checkout.sessions.create({
+				mode: "subscription",
+				line_items: subscriptionLineItems,
+				billing_address_collection: "required",
+				automatic_tax: { enabled: true },
+				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+				cancel_url: `${baseUrl}${basePath}/cart`,
+			});
+
+			const nextParam = subscriptionSession.url
+				? Buffer.from(subscriptionSession.url).toString("base64url")
+				: "";
+
+			const paymentSession = await stripe.checkout.sessions.create({
+				mode: "payment",
+				line_items: oneTimeLineItems,
+				billing_address_collection: "required",
+				shipping_address_collection: { allowed_countries: ["CA", "US"] },
+				automatic_tax: { enabled: true },
+				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}${
+					nextParam ? `&next=${nextParam}` : ""
+				}`,
+				cancel_url: `${baseUrl}${basePath}/cart`,
+			});
+
+			if (!paymentSession.url) {
+				return NextResponse.json({ error: "❌ Stripe did not return a URL" }, { status: 500 });
+			}
+
+			return NextResponse.json({ url: paymentSession.url });
+		}
 
 		const line_items = subscriptionItems.length > 0 ? subscriptionItems : oneTimeItems;
 		const mode = subscriptionItems.length > 0 ? "subscription" : "payment";
@@ -86,7 +148,7 @@ export async function POST(req: Request) {
 			mode,
 			line_items,
 			billing_address_collection: "required",
-			shipping_address_collection: mode === "payment" ? { allowed_countries: ["CA", "US"] } : undefined,
+			shipping_address_collection: shippingAddressCollection,
 			automatic_tax: { enabled: true },
 			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${baseUrl}${basePath}/cart`,
