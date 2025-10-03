@@ -103,6 +103,7 @@ const VARIANT_METADATA_DENY_PATTERNS = [
 	/description/,
 	/category/,
 	/product/,
+	/available/,
 ];
 
 const shouldUseVariantMetadataValue = (key: string, value: string | undefined) => {
