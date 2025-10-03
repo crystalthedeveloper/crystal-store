@@ -39,8 +39,9 @@ function parseBooleanish(value: unknown): boolean | undefined {
  * or that the variant/product has been discontinued. Returns true if the item should be skipped.
  */
 function hasIgnoreOrDiscontinuedFlag(meta: Record<string, unknown> | undefined): boolean {
-	if (!meta) return false;
+	if (!meta || typeof meta !== "object") return false;
 
+	// Keys and status values that commonly indicate discontinued/archived/hidden
 	const checkKeys = [
 		"printful_ignored",
 		"printful_ignore",
@@ -50,20 +51,52 @@ function hasIgnoreOrDiscontinuedFlag(meta: Record<string, unknown> | undefined):
 		"discontinued",
 		"is_discontinued",
 		"status",
+		"archived",
+		"is_archived",
+		"deleted",
+		"is_deleted",
+		"hidden",
+		"is_hidden",
+		"unavailable",
+		"is_unavailable",
+		"discontinued_at",
 	];
 
-	for (const key of checkKeys) {
-		if (key in meta) {
-			const v = meta[key as keyof typeof meta];
-			// For status-like fields, also allow the string 'discontinued'
-			if (typeof v === "string" && v.trim().toLowerCase() === "discontinued") return true;
+	const statusValuesToMatch = new Set(["discontinued", "archived", "hidden", "deleted", "unavailable"]);
 
-			const parsed = parseBooleanish(v);
-			if (parsed === true) return true;
+	const maxDepth = 3;
+
+	function walk(obj: unknown, depth: number): boolean {
+		if (depth > maxDepth || obj == null) return false;
+		if (typeof obj !== "object") return false;
+
+		for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+			const key = k.toLowerCase();
+
+			if (checkKeys.includes(key)) {
+				if (typeof v === "string" && statusValuesToMatch.has(v.trim().toLowerCase())) return true;
+				const parsed = parseBooleanish(v);
+				if (parsed === true) return true;
+				// If the value is a timestamp or non-empty string for discontinued_at, treat as discontinued
+				if (key === "discontinued_at" && typeof v === "string" && v.trim() !== "") return true;
+				if (
+					(key === "archived" || key === "hidden" || key === "deleted" || key === "unavailable") &&
+					typeof v === "number" &&
+					v === 1
+				)
+					return true;
+			}
+
+			// If value is an object/array, recurse
+			if (typeof v === "object" && v !== null) {
+				if (walk(v, depth + 1)) return true;
+			}
 		}
+
+		return false;
 	}
 
-	return false;
+	return walk(meta, 0);
 }
 
 export async function POST(req: Request) {
