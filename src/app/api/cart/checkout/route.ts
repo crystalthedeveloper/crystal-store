@@ -22,6 +22,32 @@ type CartItem = {
 	metadata?: Record<string, string | undefined>;
 };
 
+const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
+	const out: Record<string, string> = {};
+	if (!input) return out;
+	for (const [key, value] of Object.entries(input)) {
+		if (typeof value === "string" && value.trim() !== "") {
+			out[key] = value;
+		}
+	}
+	return out;
+};
+
+const mergeMetadata = (
+	...sources: Array<Record<string, string | undefined> | undefined>
+): Record<string, string> => {
+	const merged: Record<string, string> = {};
+	for (const source of sources) {
+		if (!source) continue;
+		for (const [key, value] of Object.entries(source)) {
+			if (typeof value === "string" && value.trim() !== "") {
+				merged[key] = value;
+			}
+		}
+	}
+	return merged;
+};
+
 export async function POST(req: Request) {
 	try {
 		console.log("📩 Incoming checkout request...");
@@ -51,7 +77,7 @@ export async function POST(req: Request) {
 			cart.map(async (item) => {
 				let price: Stripe.Price | null = null;
 				if (item.priceId) {
-					price = await stripe.prices.retrieve(item.priceId);
+					price = await stripe.prices.retrieve(item.priceId, { expand: ["product"] });
 				}
 				const isSubscription = price?.type === "recurring";
 				return { item, price, isSubscription };
@@ -62,7 +88,56 @@ export async function POST(req: Request) {
 		const oneTimeItems = detailedItems.filter((entry) => !entry.isSubscription);
 
 		const makeLineItem = (entry: (typeof detailedItems)[number]) => {
-			const { item } = entry;
+			const { item, price } = entry;
+
+			const expandedPrice = price ?? null;
+			const product =
+				expandedPrice && typeof expandedPrice.product === "object"
+					? (expandedPrice.product as Stripe.Product)
+					: null;
+
+			const priceMetadata = expandedPrice ? toStringRecord(expandedPrice.metadata) : {};
+			const productMetadata = product ? toStringRecord(product.metadata) : {};
+			const itemMetadata = mergeMetadata(item.metadata);
+			const combinedMetadata = mergeMetadata(productMetadata, priceMetadata, itemMetadata);
+
+			const category = combinedMetadata.category?.toLowerCase().trim();
+			const hasVariantSelection = Boolean(item.metadata?.color || item.metadata?.size);
+			const shouldInlinePrice =
+				!entry.isSubscription && expandedPrice && (category === "apparel" || hasVariantSelection);
+
+			if (shouldInlinePrice) {
+				const images = item.image
+					? [item.image]
+					: product?.images && product.images.length > 0
+						? product.images
+						: undefined;
+
+				const unitAmount =
+					typeof expandedPrice.unit_amount === "number" ? expandedPrice.unit_amount : Math.round(item.price);
+
+				const productData: Stripe.Checkout.SessionCreateParams.LineItem.PriceData.ProductData = {
+					name: item.name,
+					...(images ? { images } : {}),
+					...(Object.keys(combinedMetadata).length > 0 ? { metadata: combinedMetadata } : {}),
+				};
+
+				const priceData: Stripe.Checkout.SessionCreateParams.LineItem.PriceData = {
+					currency: expandedPrice.currency,
+					unit_amount: unitAmount,
+					product_data: productData,
+				};
+
+				if (expandedPrice.tax_behavior) {
+					priceData.tax_behavior = expandedPrice.tax_behavior;
+				}
+
+				return {
+					price_data: priceData,
+					quantity: item.quantity,
+				};
+			}
+
 			if (item.priceId) {
 				return {
 					price: item.priceId,
