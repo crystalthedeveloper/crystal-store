@@ -109,6 +109,7 @@ function findIgnoreOrDiscontinuedReason(meta: Record<string, unknown> | undefine
 					return `${key}=1`;
 			}
 
+			// If value is an object/array, recurse
 			if (typeof v === "object" && v !== null) {
 				const found = walk(v, depth + 1);
 				if (found) return found;

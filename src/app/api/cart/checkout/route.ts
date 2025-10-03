@@ -190,7 +190,9 @@ export async function POST(req: Request) {
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}&subscription_session_id=${subscriptionSession.id}`,
-				cancel_url: `${baseUrl}${basePath}/cart`,
+				// If the user navigates back from the payment (one-time) checkout, send them back to the
+				// subscription checkout session instead of the cart so they can complete the subscription first.
+				cancel_url: subscriptionSession?.url ?? `${baseUrl}${basePath}/cart`,
 			});
 
 			await stripe.checkout.sessions.update(subscriptionSession.id, {
