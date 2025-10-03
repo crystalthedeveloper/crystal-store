@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { formatMoney } from "@/lib/utils";
 import type { MappedProduct } from "@/lib/stripe/commerce";
+import { formatMoney } from "@/lib/utils";
 import { YnsLink } from "@/ui/yns-link";
 
 export const ProductList = ({ products }: { products: MappedProduct[] }) => {

@@ -6,8 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartModalProvider } from "@/context/cart-modal";
 import { env } from "@/env.mjs";
 import { getStripeClient } from "@/lib/stripe/client";
-import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Footer } from "@/ui/footer/footer";
+import { accountToWebsiteJsonLd, JsonLd } from "@/ui/json-ld";
 import { Nav } from "@/ui/nav/nav";
 import { CartModalPage } from "./cart/cart-modal";
 
@@ -41,10 +41,7 @@ async function getAccountAndLogo(): Promise<{ account: Stripe.Account | null; lo
 				"code" in error &&
 				(error as { code?: string }).code === "resource_missing";
 			if (isResourceMissing) {
-				console.warn(
-					"StoreLayout: branding logo missing in this Stripe mode (skipping)",
-					error,
-				);
+				console.warn("StoreLayout: branding logo missing in this Stripe mode (skipping)", error);
 				return { account, logoUrl: undefined };
 			}
 			throw error;
