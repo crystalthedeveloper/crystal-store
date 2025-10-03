@@ -97,7 +97,7 @@ function toMappedProduct(product: KitProduct): MappedProduct {
 		images: Array.isArray(product.images) ? product.images : [],
 		metadata: product.metadata,
 		default_price: {
-			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : product.default_price?.id ?? "",
+			id: typeof defaultPrice?.id === "string" ? defaultPrice.id : (product.default_price?.id ?? ""),
 			unit_amount: defaultPrice?.unit_amount ?? null,
 			currency: defaultPrice?.currency?.toUpperCase() ?? env.STRIPE_CURRENCY,
 		},
@@ -206,7 +206,9 @@ export async function productBrowse(params: ProductBrowseParams = {}): Promise<M
 
 export async function productGet(params: ProductGetParams): Promise<KitProduct[]> {
 	if (!env.STRIPE_SECRET_KEY) {
-		console.warn("[stripe][productGet] missing STRIPE_SECRET_KEY; returning empty array", { slug: params.slug });
+		console.warn("[stripe][productGet] missing STRIPE_SECRET_KEY; returning empty array", {
+			slug: params.slug,
+		});
 		return [];
 	}
 	const stripe = ensureStripe();

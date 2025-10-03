@@ -29,8 +29,9 @@ export default function CheckoutForm({
 	const lines = useCartStore((s) => s.lines);
 
 	const cart = lines.map((line) => {
-		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean);
-		const displayName = formatProductName(line.name ?? "Unknown", variantParts.join(" / "));
+		const baseName = line.name ?? "Unknown";
+		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+		const displayName = formatProductName(baseName, variantParts);
 
 		return {
 			name: displayName,
