@@ -24,6 +24,22 @@ type NextSearchParams = Record<string, string | string[] | undefined>;
 
 const stripe = env.STRIPE_SECRET_KEY ? createStripeClient(env.STRIPE_SECRET_KEY) : null;
 
+const getFirstMetadataValue = (metadata: Record<string, string | undefined>, keys: string[]) => {
+	for (const key of keys) {
+		const value = metadata[key];
+		if (typeof value !== "string") continue;
+		const trimmed = value.trim();
+		if (!trimmed) continue;
+		return trimmed;
+	}
+
+	return undefined;
+};
+
+const COLOR_METADATA_KEYS = ["color", "colour"];
+const SIZE_METADATA_KEYS = ["size"];
+const VARIANT_METADATA_KEYS = ["variant", "variant_label", "variant_title", "variant_name"];
+
 export default async function OrderDetailsPage({
 	searchParams,
 }: {
@@ -110,14 +126,19 @@ export default async function OrderDetailsPage({
 						typeof product === "object" && product && !product.deleted
 							? ((product.metadata ?? {}) as Record<string, string | undefined>)
 							: {};
-					const variantMetadata = Object.keys(priceMetadata).length > 0 ? priceMetadata : productMetadata;
+					const priceColor = getFirstMetadataValue(priceMetadata, COLOR_METADATA_KEYS);
+					const productColor = getFirstMetadataValue(productMetadata, COLOR_METADATA_KEYS);
+					const color = priceColor ?? productColor;
+					const size = getFirstMetadataValue(priceMetadata, SIZE_METADATA_KEYS);
+					const priceVariant = getFirstMetadataValue(priceMetadata, VARIANT_METADATA_KEYS);
+					const productVariant = getFirstMetadataValue(productMetadata, VARIANT_METADATA_KEYS);
+					const hasPriceVariantDetails = Boolean(priceVariant ?? priceColor ?? size);
+					const variantMetadata = hasPriceVariantDetails ? priceMetadata : productMetadata;
 					const baseName =
 						typeof product === "object" && product && !product.deleted
 							? (product.name ?? line.description ?? "Product")
 							: (line.description ?? "Product");
-					const color = priceMetadata.color ?? productMetadata.color;
-					const size = priceMetadata.size ?? productMetadata.size;
-					const variantFallback = priceMetadata.variant ?? productMetadata.variant;
+					const variantFallback = priceVariant ?? productVariant;
 					const variantParts = collectVariantDisplayParts({
 						additional: [color, size],
 						variant: variantFallback,
