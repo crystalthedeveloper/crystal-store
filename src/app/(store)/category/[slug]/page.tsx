@@ -1,9 +1,8 @@
 // src/app/(store)/category/[slug]/page.tsx
 import type { Metadata } from "next";
-import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
-
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
+import { type MappedProduct, productBrowse } from "@/lib/stripe/commerce";
 import { deslugify } from "@/lib/utils";
 import type { NormalizedProduct } from "@/ui/json-ld";
 import { ProductList } from "@/ui/products/product-list";
@@ -34,9 +33,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 		return products.length > 0
 			? baseMeta
 			: {
-				...baseMeta,
-				robots: { index: false, follow: false },
-			};
+					...baseMeta,
+					robots: { index: false, follow: false },
+				};
 	} catch (err) {
 		console.warn("[category][metadata] Stripe browse failed", err);
 		return baseMeta;

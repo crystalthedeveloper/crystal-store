@@ -45,9 +45,11 @@ export function CartModalPage() {
 					) : (
 						<ul role="list" className="-my-6 divide-y divide-neutral-200">
 							{lines.map((line) => {
-								const variantParts = [line.metadata?.color, line.metadata?.size, line.variant].filter(
-									Boolean,
-								);
+								const variantParts = [
+									line.metadata?.color,
+									line.metadata?.size,
+									...(line.metadata?.color || line.metadata?.size ? [] : [line.variant]),
+								];
 
 								return (
 									<li
@@ -69,7 +71,7 @@ export function CartModalPage() {
 										)}
 
 										<h3 className="-mt-1 font-semibold leading-tight">
-											{formatProductName(line.name ?? "Unknown", variantParts.join(" / "))}
+											{formatProductName(line.name ?? "Unknown", variantParts)}
 										</h3>
 
 										<p className="text-sm font-medium leading-none">

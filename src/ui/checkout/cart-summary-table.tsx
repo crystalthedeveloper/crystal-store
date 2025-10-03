@@ -61,6 +61,11 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 					<TableBody>
 						{lines.map((line: CartLine) => {
 							const lineTotal = line.price * line.quantity;
+							const variantParts = [
+								line.metadata?.color,
+								line.metadata?.size,
+								...(line.metadata?.color || line.metadata?.size ? [] : [line.variant]),
+							];
 
 							return (
 								<TableRow key={`${line.id}-${line.priceId}`}>
@@ -83,10 +88,7 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 											className="transition-colors hover:text-muted-foreground"
 											href={`/product/${line.id}`}
 										>
-											{formatProductName(
-												line.name,
-												[line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean).join(" / "),
-											)}
+											{formatProductName(line.name, variantParts)}
 										</YnsLink>
 									</TableCell>
 									<TableCell>{formatMoney({ amount: line.price, currency, locale })}</TableCell>
@@ -149,6 +151,11 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 			<div className="space-y-4 sm:hidden">
 				{lines.map((line: CartLine) => {
 					const lineTotal = line.price * line.quantity;
+					const variantParts = [
+						line.metadata?.color,
+						line.metadata?.size,
+						...(line.metadata?.color || line.metadata?.size ? [] : [line.variant]),
+					];
 					return (
 						<div key={`${line.id}-${line.priceId}`} className="flex gap-3 rounded-lg border p-3 shadow-sm">
 							{line.image ? (
@@ -164,10 +171,7 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 							)}
 							<div className="flex flex-1 flex-col justify-between">
 								<YnsLink className="font-medium hover:text-muted-foreground" href={`/product/${line.id}`}>
-									{formatProductName(
-										line.name,
-										[line.metadata?.color, line.metadata?.size, line.variant].filter(Boolean).join(" / "),
-									)}
+									{formatProductName(line.name, variantParts)}
 								</YnsLink>
 								<div className="text-sm text-muted-foreground">
 									{formatMoney({ amount: line.price, currency, locale })} × {line.quantity}

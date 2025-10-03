@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { env, publicUrl } from "@/env.mjs";
 import { getTranslations } from "@/i18n/server";
-import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
+import { type MappedProduct, productBrowse } from "@/lib/stripe/commerce";
 import { ProductList } from "@/ui/products/product-list";
 
 export const runtime = "nodejs"; // server-only libs

@@ -147,7 +147,7 @@ export async function POST(req: Request) {
 						const externalIdRaw =
 							typeof session.payment_intent === "string"
 								? session.payment_intent
-								: session.payment_intent?.id ?? session.id;
+								: (session.payment_intent?.id ?? session.id);
 						const externalId = externalIdRaw.slice(0, 64);
 
 						const res = await fetch("https://api.printful.com/orders", {
