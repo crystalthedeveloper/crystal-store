@@ -7,10 +7,7 @@ const API_VERSION: Stripe.StripeConfig["apiVersion"] = "2025-09-30.clover";
 
 function isCloudflareWorker() {
 	try {
-		return (
-			typeof navigator !== "undefined" &&
-			Boolean(navigator.userAgent?.includes("Cloudflare-Workers"))
-		);
+		return typeof navigator !== "undefined" && Boolean(navigator.userAgent?.includes("Cloudflare-Workers"));
 	} catch {
 		return false;
 	}

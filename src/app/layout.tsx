@@ -1,6 +1,4 @@
 // root layout
-//import "@devlink/global.css";
-//import { DevLinkProvider } from "@devlink/DevLinkProvider";
 import "@/app/globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";

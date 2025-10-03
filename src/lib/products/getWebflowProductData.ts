@@ -2,7 +2,7 @@
 import type Stripe from "stripe";
 
 import { env } from "@/env.mjs";
-import { provider, type KitPrice, type KitProduct } from "@/lib/stripe/commerce";
+import { type KitPrice, type KitProduct, provider } from "@/lib/stripe/commerce";
 
 type ProductMetadata = {
 	category?: string;

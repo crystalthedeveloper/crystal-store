@@ -1,8 +1,8 @@
 // src/app/sitemap.ts
 import type { MetadataRoute } from "next";
 import { env, publicUrl } from "@/env.mjs";
+import { type MappedProduct, productBrowse } from "@/lib/stripe/commerce";
 import StoreConfig from "@/store.config";
-import { productBrowse, type MappedProduct } from "@/lib/stripe/commerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

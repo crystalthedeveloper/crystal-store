@@ -2,14 +2,14 @@
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
 import Image from "next/image";
-import type { ComponentProps } from "react";
 import { redirect } from "next/navigation";
+import type { ComponentProps } from "react";
+import type Stripe from "stripe";
 import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
-import { formatMoney } from "@/lib/utils";
 import { createStripeClient } from "@/lib/stripe/client";
-import type Stripe from "stripe";
+import { formatMoney, formatProductName } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,8 +33,8 @@ export default async function OrderDetailsPage({
 
 	const sp = await searchParams;
 	const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined;
-	const nextUrl = typeof sp.next === "string" ? Buffer.from(sp.next, "base64url").toString("utf8") : undefined;
-	if (nextUrl) redirect(nextUrl);
+	const subscriptionSessionId =
+		typeof sp.subscription_session_id === "string" ? sp.subscription_session_id : undefined;
 
 	if (!sessionId) return <div>Missing session_id</div>;
 
@@ -51,14 +51,41 @@ export default async function OrderDetailsPage({
 		);
 	}
 
+	if (subscriptionSessionId && subscriptionSessionId !== sessionId) {
+		const subscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
+		if (subscriptionSession?.url) {
+			redirect(subscriptionSession.url);
+		}
+	}
+
 	const session = await stripe.checkout.sessions.retrieve(sessionId, {
 		expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
 	});
 
 	if (!session) return <div>Order not found</div>;
 
+	const linkedSessions: Stripe.Checkout.Session[] = [session];
+	const linkedPaymentSessionId = session.metadata?.payment_session_id;
+
+	if (typeof linkedPaymentSessionId === "string" && linkedPaymentSessionId) {
+		try {
+			const linkedSession = await stripe.checkout.sessions.retrieve(linkedPaymentSessionId, {
+				expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
+			});
+
+			if (linkedSession) {
+				linkedSessions.push(linkedSession);
+			}
+		} catch (error) {
+			console.error("Unable to load linked checkout session", error);
+		}
+	}
+
 	const t = await getTranslations("/order.page");
 	const locale = await getLocale();
+	const allLineItems = linkedSessions.flatMap((s) => s.line_items?.data ?? []);
+	const totalAmount = linkedSessions.reduce((sum, s) => sum + (s.amount_total ?? 0), 0);
+	const currency = session.currency ?? linkedSessions.find((s) => s.currency)?.currency ?? "usd";
 
 	return (
 		<article className="max-w-3xl pb-32">
@@ -76,8 +103,22 @@ export default async function OrderDetailsPage({
 			<h2 className="sr-only">{t("productsTitle")}</h2>
 			{/* Products List */}
 			<ul role="list" className="my-8 space-y-6">
-				{session.line_items?.data.map((line) => {
+				{allLineItems.map((line) => {
 					const product = line.price?.product;
+					const priceMetadata = (line.price?.metadata ?? {}) as Record<string, string | undefined>;
+					const productMetadata =
+						typeof product === "object" && product && !product.deleted
+							? ((product.metadata ?? {}) as Record<string, string | undefined>)
+							: {};
+					const baseName =
+						typeof product === "object" && product && !product.deleted
+							? (product.name ?? line.description ?? "Product")
+							: (line.description ?? "Product");
+					const color = priceMetadata.color ?? productMetadata.color;
+					const size = priceMetadata.size ?? productMetadata.size;
+					const variantFallback = priceMetadata.variant ?? productMetadata.variant;
+					const variantParts = [color, size, variantFallback];
+					const displayName = formatProductName(baseName, variantParts);
 					return (
 						<li key={line.id} className="flex items-start gap-6 rounded-lg border p-4 shadow-sm">
 							{/* Product Image */}
@@ -98,15 +139,15 @@ export default async function OrderDetailsPage({
 
 							{/* Product Details */}
 							<div className="flex-1">
-								<h3 className="font-semibold text-lg text-neutral-900">{line.description}</h3>
+								<h3 className="font-semibold text-lg text-neutral-900">{displayName}</h3>
 
-					<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground leading-relaxed">
-						<div>
-							<p className="font-medium">{t("price")}</p>
-							<p className="leading-relaxed">
-								{formatMoney({
-									amount: line.price?.unit_amount ?? 0,
-									currency: line.price?.currency ?? "usd",
+								<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground leading-relaxed">
+									<div>
+										<p className="font-medium">{t("price")}</p>
+										<p className="leading-relaxed">
+											{formatMoney({
+												amount: line.price?.unit_amount ?? 0,
+												currency: line.price?.currency ?? "usd",
 												locale,
 											})}
 										</p>
@@ -115,9 +156,9 @@ export default async function OrderDetailsPage({
 										<p className="font-medium">{t("quantity")}</p>
 										<p>{line.quantity}</p>
 									</div>
-							<div>
-								<p className="font-medium">{t("total")}</p>
-								<p className="leading-relaxed">
+									<div>
+										<p className="font-medium">{t("total")}</p>
+										<p className="leading-relaxed">
 											{formatMoney({
 												amount: (line.price?.unit_amount ?? 0) * (line.quantity ?? 1),
 												currency: line.price?.currency ?? "usd",
@@ -134,10 +175,10 @@ export default async function OrderDetailsPage({
 
 			<div className="col-span-2 grid grid-cols-2 gap-8 border-t pt-8">
 				<h3 className="font-semibold leading-none text-neutral-700">{t("total")}</h3>
-			<p className="leading-relaxed">
-				{formatMoney({
-					amount: session.amount_total ?? 0,
-						currency: session.currency ?? "usd",
+				<p className="leading-relaxed">
+					{formatMoney({
+						amount: totalAmount,
+						currency,
 						locale,
 					})}
 				</p>
