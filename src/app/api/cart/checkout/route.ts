@@ -48,6 +48,22 @@ const mergeMetadata = (
 	return merged;
 };
 
+function buildStoreUrl(baseUrl: string, basePath: string, subPath: string, params: Record<string, string> = {}) {
+	const url = new URL(baseUrl);
+	const split = (value: string) => value.split("/").filter(Boolean);
+	const baseSegments = split(url.pathname);
+	const configuredSegments = split(basePath ?? "");
+	const combined = [...baseSegments];
+	if (configuredSegments.length > 0 && baseSegments.join("/") !== configuredSegments.join("/")) {
+		combined.push(...configuredSegments);
+	}
+	combined.push(...split(subPath));
+	url.pathname = combined.length > 0 ? `/${combined.join("/")}` : "/";
+	const rawSearch = new URLSearchParams(params).toString();
+	url.search = rawSearch.replace(/%7B/gi, "{").replace(/%7D/gi, "}");
+	return url.toString();
+}
+
 export async function POST(req: Request) {
 	try {
 		console.log("📩 Incoming checkout request...");
@@ -179,9 +195,14 @@ export async function POST(req: Request) {
 				billing_address_collection: "required",
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
-				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-				// Route subscription cancellations to a handler that can resolve the linked payment checkout later.
-				cancel_url: `${baseUrl}${basePath}/order/cancelled?subscription_session_id={CHECKOUT_SESSION_ID}`,
+				success_url: buildStoreUrl(baseUrl, basePath, "order/success", {
+					session_id: "{CHECKOUT_SESSION_ID}",
+				}),
+				// If the subscription checkout is cancelled, send the shopper back to the completed payment receipt.
+				cancel_url: buildStoreUrl(baseUrl, basePath, "order/success", {
+					session_id: "{CHECKOUT_SESSION_ID}",
+					subscription_cancelled: "1",
+				}),
 			});
 
 			const paymentSession = await stripe.checkout.sessions.create({
@@ -190,9 +211,12 @@ export async function POST(req: Request) {
 				billing_address_collection: "required",
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
-				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}&subscription_session_id=${subscriptionSession.id}`,
+				success_url: buildStoreUrl(baseUrl, basePath, "order/success", {
+					session_id: "{CHECKOUT_SESSION_ID}",
+					subscription_session_id: subscriptionSession.id,
+				}),
 				// Route payment cancellations directly to the cart so shoppers can review or adjust items.
-				cancel_url: `${baseUrl}${basePath}/cart`,
+				cancel_url: buildStoreUrl(baseUrl, basePath, "cart"),
 			});
 
 				await stripe.checkout.sessions.update(subscriptionSession.id, {
@@ -217,8 +241,10 @@ export async function POST(req: Request) {
 			billing_address_collection: "required",
 			shipping_address_collection: shippingAddressCollection,
 			automatic_tax: { enabled: true },
-			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-			cancel_url: `${baseUrl}${basePath}/cart`,
+			success_url: buildStoreUrl(baseUrl, basePath, "order/success", {
+				session_id: "{CHECKOUT_SESSION_ID}",
+			}),
+			cancel_url: buildStoreUrl(baseUrl, basePath, "cart"),
 		});
 
 		if (!session.url) {

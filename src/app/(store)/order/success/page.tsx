@@ -118,19 +118,33 @@ export default async function OrderDetailsPage({
 		}
 	}
 
-	const linkedSessions = Array.from(linkedSessionsMap.values());
+	const linkedSessions = Array.from(linkedSessionsMap.values()).sort((a, b) => {
+		const score = (session: Stripe.Checkout.Session) => {
+			if (session.mode === "payment") return 0;
+			if (session.payment_status === "paid" || session.status === "complete") return 1;
+			return 2;
+		};
+		return score(a) - score(b);
+	});
+
+	const paidSessions = linkedSessions.filter(
+		(s) => s.payment_status === "paid" || s.status === "complete" || s.mode === "payment",
+	);
+	const hasPaidReceipt = paidSessions.length > 0;
+	const sessionsForDisplay = hasPaidReceipt ? paidSessions : [session];
+	const primarySession = sessionsForDisplay[0] ?? session;
 
 	const t = await getTranslations("/order.page");
 	const locale = await getLocale();
-	const allLineItems = linkedSessions.flatMap((s) => s.line_items?.data ?? []);
-	const totalAmount = linkedSessions.reduce((sum, s) => sum + (s.amount_total ?? 0), 0);
-	const currency = session.currency ?? linkedSessions.find((s) => s.currency)?.currency ?? "usd";
+	const allLineItems = sessionsForDisplay.flatMap((s) => s.line_items?.data ?? []);
+	const totalAmount = sessionsForDisplay.reduce((sum, s) => sum + (s.amount_total ?? 0), 0);
+	const currency = primarySession.currency ?? sessionsForDisplay.find((s) => s.currency)?.currency ?? "usd";
 
 	return (
 		<article className="max-w-3xl pb-32">
 			<h1 className="mt-4 inline-flex items-center text-3xl font-bold leading-none tracking-tight">
 				{t("title")}
-				<PaymentStatus status={session.payment_status} />
+				<PaymentStatus status={primarySession.payment_status} />
 			</h1>
 			<p className="mt-2">{t("description")}</p>
 
@@ -138,13 +152,14 @@ export default async function OrderDetailsPage({
 				<p className="mt-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
 					The subscription portion of this order was cancelled. The summary below shows the one-time
 					items that were successfully paid.
+					{!hasPaidReceipt && " We were unable to locate the matching payment receipt."}
 				</p>
 			) : null}
 
-			<dl className="mt-12 space-y-2 text-sm">
-				<dt className="font-semibold text-foreground">{t("orderNumberTitle")}</dt>
-				<dd className="text-accent-foreground">{session.id}</dd>
-			</dl>
+				<dl className="mt-12 space-y-2 text-sm">
+					<dt className="font-semibold text-foreground">{t("orderNumberTitle")}</dt>
+					<dd className="text-accent-foreground">{primarySession.id}</dd>
+				</dl>
 
 			<h2 className="sr-only">{t("productsTitle")}</h2>
 			{/* Products List */}

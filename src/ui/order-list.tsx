@@ -49,7 +49,7 @@ export function OrderList() {
 			<div className="flex flex-col items-center justify-center py-10 text-center">
 				<p className="text-sm text-muted-foreground mb-4">No orders yet.</p>
 				<Button asChild>
-					<a href="/store">Go shopping</a>
+					<a href="/">Go shopping</a>
 				</Button>
 			</div>
 		);

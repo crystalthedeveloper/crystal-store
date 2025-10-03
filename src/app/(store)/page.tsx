@@ -100,7 +100,14 @@ export default async function Home() {
 	let products: ProductFromBrowse[] = [];
 	try {
 		const allProducts = await productBrowse({ first: 24 });
-		products = allProducts.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0)).slice(0, 6);
+
+		// ✅ Shuffle only on the home page
+		products = allProducts
+			.map((p) => ({ ...p, rand: Math.random() }))
+			.sort((a, b) => a.rand - b.rand)
+			.slice(0, 6)
+			.map(({ rand, ...rest }) => rest);
+
 		console.log("[home] productBrowse success", {
 			total: allProducts.length,
 			selected: products.length,
