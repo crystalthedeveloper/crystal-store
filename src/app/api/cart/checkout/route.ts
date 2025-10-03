@@ -75,6 +75,32 @@ const mergeMetadata = (
 	return merged;
 };
 
+const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
+	const out: Record<string, string> = {};
+	if (!input) return out;
+	for (const [key, value] of Object.entries(input)) {
+		if (typeof value === "string" && value.trim() !== "") {
+			out[key] = value;
+		}
+	}
+	return out;
+};
+
+const mergeMetadata = (
+	...sources: Array<Record<string, string | undefined> | undefined>
+): Record<string, string> => {
+	const merged: Record<string, string> = {};
+	for (const source of sources) {
+		if (!source) continue;
+		for (const [key, value] of Object.entries(source)) {
+			if (typeof value === "string" && value.trim() !== "") {
+				merged[key] = value;
+			}
+		}
+	}
+	return merged;
+};
+
 export async function POST(req: Request) {
 	try {
 		const body = (await req.json()) as { cart?: CartItem[] };

@@ -117,11 +117,8 @@ export default async function OrderDetailsPage({
 					const color = priceMetadata.color ?? productMetadata.color;
 					const size = priceMetadata.size ?? productMetadata.size;
 					const variantFallback = priceMetadata.variant ?? productMetadata.variant;
-
-					// ✅ Join parts safely into one string
-					const variantString = [color, size, variantFallback].filter(Boolean).join(" ");
-					const displayName = formatProductName(baseName, variantString);
-
+					const variantParts = [color, size, variantFallback];
+					const displayName = formatProductName(baseName, variantParts);
 					return (
 						<li key={line.id} className="flex items-start gap-6 rounded-lg border p-4 shadow-sm">
 							{/* Product Image */}
