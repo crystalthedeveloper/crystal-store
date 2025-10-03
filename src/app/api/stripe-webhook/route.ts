@@ -34,6 +34,93 @@ function parseBooleanish(value: unknown): boolean | undefined {
 	return undefined;
 }
 
+// Simple in-memory cache for Printful variant lookups to reduce API calls.
+const variantCache = new Map<number, { variant: Record<string, unknown> | null; expires: number }>();
+
+function now() {
+	return Date.now();
+}
+
+function sleep(ms: number) {
+	return new Promise((res) => setTimeout(res, ms));
+}
+
+/**
+ * Fetch with timeout using AbortController. Returns the fetch Response or throws an error on abort.
+ */
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 5000) {
+	const controller = new AbortController();
+	const id = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		const res = await fetch(input, { ...init, signal: controller.signal } as RequestInit);
+		return res;
+	} finally {
+		clearTimeout(id);
+	}
+}
+
+/**
+ * Like hasIgnoreOrDiscontinuedFlag but returns a short reason string when a matching flag is found.
+ */
+function findIgnoreOrDiscontinuedReason(meta: Record<string, unknown> | undefined): string | undefined {
+	if (!meta || typeof meta !== "object") return undefined;
+
+	const checkKeys = [
+		"printful_ignored",
+		"printful_ignore",
+		"ignore_printful",
+		"skip_printful",
+		"printful_discontinued",
+		"discontinued",
+		"is_discontinued",
+		"status",
+		"archived",
+		"is_archived",
+		"deleted",
+		"is_deleted",
+		"hidden",
+		"is_hidden",
+		"unavailable",
+		"is_unavailable",
+		"discontinued_at",
+	];
+
+	const statusValuesToMatch = new Set(["discontinued", "archived", "hidden", "deleted", "unavailable"]);
+
+	const maxDepth = 3;
+
+	function walk(obj: unknown, depth: number): string | undefined {
+		if (depth > maxDepth || obj == null) return undefined;
+		if (typeof obj !== "object") return undefined;
+
+		for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+			const key = k.toLowerCase();
+
+			if (checkKeys.includes(key)) {
+				if (typeof v === "string" && statusValuesToMatch.has(v.trim().toLowerCase())) return `${key}=${v}`;
+				const parsed = parseBooleanish(v);
+				if (parsed === true) return `${key}=${String(v)}`;
+				if (key === "discontinued_at" && typeof v === "string" && v.trim() !== "") return `${key}=${v}`;
+				if (
+					(key === "archived" || key === "hidden" || key === "deleted" || key === "unavailable") &&
+					typeof v === "number" &&
+					v === 1
+				)
+					return `${key}=1`;
+			}
+
+			if (typeof v === "object" && v !== null) {
+				const found = walk(v, depth + 1);
+				if (found) return found;
+			}
+		}
+
+		return undefined;
+	}
+
+	return walk(meta, 0);
+}
+
 /**
  * Check a product/price metadata object for flags that indicate Printful should be ignored
  * or that the variant/product has been discontinued. Returns true if the item should be skipped.
@@ -191,42 +278,65 @@ export async function POST(req: Request) {
 								return null;
 							}
 
-							// Retrieve variant details from Printful and inspect for discontinuation/archived flags
+							// Retrieve variant details from Printful and inspect for discontinuation/archived flags.
 							try {
-								const r = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
-									headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
-								});
+								const cacheTtl = 1000 * 60 * 5; // 5 minutes
+								const cached = variantCache.get(syncIdNum);
+								let variant: Record<string, unknown> | undefined | null = undefined;
 
-								if (!r.ok) {
-									console.warn(`⚠️ Printful variant ${syncIdNum} not found (status ${r.status})`);
-									return null;
+								if (cached && cached.expires > now()) {
+									variant = cached.variant ?? undefined;
+								} else {
+									// fetch with a timeout and modest retry for transient errors
+									try {
+										const r = await fetchWithTimeout(
+											`https://api.printful.com/store/variants/${syncIdNum}`,
+											{
+												headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
+											},
+											5000,
+										);
+
+										if (!r.ok) {
+											console.warn(`⚠️ Printful variant ${syncIdNum} not found (status ${r.status})`);
+											variantCache.set(syncIdNum, { variant: null, expires: now() + cacheTtl });
+											return null;
+										}
+
+										const json = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+										variant = (json && (json.result ?? json)) as Record<string, unknown> | undefined;
+										variantCache.set(syncIdNum, { variant: variant ?? null, expires: now() + cacheTtl });
+									} catch (err) {
+										console.warn(`⚠️ Error fetching Printful variant ${syncIdNum}:`, err);
+										// don't include the item on transient fetch failure
+										return null;
+									}
 								}
-
-								const json = (await r.json().catch(() => null)) as Record<string, unknown> | null;
-								// Printful variant responses commonly have a `result` object with variant details
-								const variant = (json && (json.result ?? json)) as Record<string, unknown> | undefined;
 
 								// Inspect variant-level flags that indicate the variant is discontinued/archived
 								if (variant) {
-									// Some Printful responses may include a boolean or string flag
-									if (hasIgnoreOrDiscontinuedFlag(variant as Record<string, unknown>)) {
+									const reason = findIgnoreOrDiscontinuedReason(variant);
+									if (reason) {
 										console.warn(
-											`⚠️ Printful variant ${syncIdNum} is marked discontinued/ignored by Printful; skipping`,
+											`⚠️ Printful variant ${syncIdNum} is marked discontinued/ignored by Printful; skipping — ${reason}`,
 										);
 										return null;
 									}
 
 									// Also check nested product/status fields
 									const productInfo = (variant.product ?? variant) as Record<string, unknown> | undefined;
-									if (productInfo && hasIgnoreOrDiscontinuedFlag(productInfo)) {
-										console.warn(
-											`⚠️ Printful variant ${syncIdNum} product marked discontinued/ignored; skipping`,
-										);
-										return null;
+									if (productInfo) {
+										const pReason = findIgnoreOrDiscontinuedReason(productInfo);
+										if (pReason) {
+											console.warn(
+												`⚠️ Printful variant ${syncIdNum} product marked discontinued/ignored; skipping — ${pReason}`,
+											);
+											return null;
+										}
 									}
 								}
 							} catch (err) {
-								console.warn(`⚠️ Error fetching Printful variant ${syncIdNum}:`, err);
+								console.warn(`⚠️ Error inspecting Printful variant ${syncIdNum}:`, err);
 								return null;
 							}
 
@@ -271,26 +381,80 @@ export async function POST(req: Request) {
 								: (session.payment_intent?.id ?? session.id);
 						const externalId = externalIdRaw.slice(0, 64);
 
-						const res = await fetch("https://api.printful.com/orders", {
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${env.PRINTFUL_API_KEY}`,
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
-								external_id: externalId,
-								recipient,
-								items,
-								confirm: false,
-							}),
-						});
+						// Create Printful order, but be tolerant of per-item discontinuation errors.
+						// If Printful returns an error like "Item 1: This item is discontinued.",
+						// remove that item and retry the order (up to a small number of attempts).
 
-						if (!res.ok) {
-							const text = await res.text();
+						const maxAttempts = 3;
+						let attempt = 0;
+						let attemptItems = items.slice();
+						let created = false;
+
+						// Helper to parse discontinued item indexes from Printful error text/JSON
+						const extractDiscontinuedIndexes = (input: string | null): number[] => {
+							if (!input) return [];
+							try {
+								// JSON responses sometimes include a `result` string with the message
+								const parsed = JSON.parse(input) as Record<string, unknown> | null;
+								if (
+									parsed &&
+									"result" in parsed &&
+									typeof (parsed as Record<string, unknown>).result === "string"
+								) {
+									input = String((parsed as Record<string, unknown>).result);
+								}
+							} catch (e) {
+								// not JSON, continue with raw text
+							}
+
+							const matches = Array.from((input || "").matchAll(/Item\s*(\d+):[^\n]*discontinued/gi));
+							return matches.map((m) => Number(m[1]));
+						};
+
+						while (attempt < maxAttempts && attemptItems.length > 0 && !created) {
+							attempt++;
+							const res = await fetch("https://api.printful.com/orders", {
+								method: "POST",
+								headers: {
+									Authorization: `Bearer ${env.PRINTFUL_API_KEY}`,
+									"Content-Type": "application/json",
+								},
+								body: JSON.stringify({
+									external_id: externalId,
+									recipient,
+									items: attemptItems,
+									confirm: false,
+								}),
+							});
+
+							if (res.ok) {
+								const body = await res.json().catch(() => null);
+								console.log("✅ Printful order created (draft)", { items: attemptItems, response: body });
+								created = true;
+								break;
+							}
+
+							// Read text body for diagnostics and attempt to parse discontinued item indexes
+							const text = await res.text().catch(() => null);
 							console.error("❌ Printful error:", res.status, text);
-						} else {
-							const body = await res.json().catch(() => null);
-							console.log("✅ Printful order created (draft)", { items, response: body });
+
+							const discontinuedIdx = extractDiscontinuedIndexes(text);
+							if (discontinuedIdx.length === 0) {
+								// nothing we can do — break and bail out
+								break;
+							}
+
+							// Remove the discontinued items by index. Printful indexes items in the order sent (0-based in messages).
+							const toRemove = new Set(discontinuedIdx);
+							const prevCount = attemptItems.length;
+							attemptItems = attemptItems.filter((_, idx) => !toRemove.has(idx));
+							console.warn(
+								`⚠️ Removed ${prevCount - attemptItems.length} discontinued Printful item(s) and retrying (attempt ${attempt}/${maxAttempts})`,
+							);
+						}
+
+						if (!created && attemptItems.length === 0) {
+							console.warn("⚠️ All Printful items were discontinued/removed; not creating a Printful order.");
 						}
 					}
 				}
