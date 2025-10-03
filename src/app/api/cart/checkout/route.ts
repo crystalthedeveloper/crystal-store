@@ -168,11 +168,16 @@ export async function POST(req: Request) {
 			);
 		}
 
+		const shippingAddressCollection: Stripe.Checkout.SessionCreateParams.ShippingAddressCollection = {
+			allowed_countries: ["CA", "US"],
+		};
+
 		if (subscriptionLineItems.length > 0 && oneTimeLineItems.length > 0) {
 			const subscriptionSession = await stripe.checkout.sessions.create({
 				mode: "subscription",
 				line_items: subscriptionLineItems,
 				billing_address_collection: "required",
+				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 				cancel_url: `${baseUrl}${basePath}/cart`,
@@ -186,7 +191,7 @@ export async function POST(req: Request) {
 				mode: "payment",
 				line_items: oneTimeLineItems,
 				billing_address_collection: "required",
-				shipping_address_collection: { allowed_countries: ["CA", "US"] },
+				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}${
 					nextParam ? `&next=${nextParam}` : ""
@@ -207,7 +212,7 @@ export async function POST(req: Request) {
 			mode,
 			line_items,
 			billing_address_collection: "required",
-			shipping_address_collection: mode === "payment" ? { allowed_countries: ["CA", "US"] } : undefined,
+			shipping_address_collection: shippingAddressCollection,
 			automatic_tax: { enabled: true },
 			success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${baseUrl}${basePath}/cart`,
