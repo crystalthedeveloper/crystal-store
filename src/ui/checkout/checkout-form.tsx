@@ -16,12 +16,12 @@ export default function CheckoutForm({
 	locale,
 	title,
 	description,
-	note,
+	note, // ✅ add note here
 }: {
 	locale: string;
 	title: string;
 	description: string;
-	note?: string;
+	note?: string; // ✅ optional for safety
 }) {
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,9 +42,7 @@ export default function CheckoutForm({
 		}
 
 		return {
-			name: baseName,
-			displayName, // ✅ "04H (Black / XS)"
-			variantLabel: variantLabel || undefined,
+			name: displayName,
 			price: line.price,
 			quantity: line.quantity,
 			image: line.image,
@@ -93,6 +91,7 @@ export default function CheckoutForm({
 			<h2 className="text-3xl font-bold leading-none tracking-tight">{title}</h2>
 			<p className="mt-2 text-sm text-muted-foreground">{description}</p>
 
+			{/* ✅ render note on its own line */}
 			{note && <p className="mt-1 text-sm text-muted-foreground">Note: {note}</p>}
 
 			{errorMessage && (
