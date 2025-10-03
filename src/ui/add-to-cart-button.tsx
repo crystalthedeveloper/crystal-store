@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useCartModal } from "@/context/cart-modal";
 import { useCartStore } from "@/context/cart-store";
 import { useTranslations } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn, collectVariantDisplayParts } from "@/lib/utils";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const API_BASE =
@@ -23,6 +23,7 @@ export type AddToCartProps = {
 	variant?: string;
 	color?: string;
 	size?: string;
+	metadata?: Record<string, string | undefined>;
 	className?: string;
 	disabled?: boolean; // ✅ external disable support
 };
@@ -37,6 +38,7 @@ export const AddToCartButton = ({
 	variant,
 	color,
 	size,
+	metadata,
 	className,
 	disabled = false,
 }: AddToCartProps) => {
@@ -46,6 +48,25 @@ export const AddToCartButton = ({
 	const { addItem } = useCartStore();
 
 	const isDisabled = pending || !priceId || disabled;
+
+	const variantParts = collectVariantDisplayParts({
+		additional: [color, size],
+		variant,
+		metadata,
+	});
+	const variantLabel = variantParts.join(" / ");
+
+	const metadataToStoreEntries = Object.entries({
+		...(metadata ?? {}),
+		color,
+		size,
+		...(variantLabel ? { variant_label: variantLabel } : {}),
+	}).filter(([, value]) => typeof value === "string" && value.trim().length > 0);
+
+	const metadataToStore = Object.fromEntries(metadataToStoreEntries) as Record<string, string>;
+	if (variantLabel && !metadataToStore.variant) {
+		metadataToStore.variant = variantLabel;
+	}
 
 	const handleClick = () => {
 		if (isDisabled) return;
@@ -60,7 +81,7 @@ export const AddToCartButton = ({
 						productId,
 						priceId,
 						quantity: 1,
-						variant,
+						variant: variantLabel || variant,
 						color,
 						size,
 					}),
@@ -78,8 +99,8 @@ export const AddToCartButton = ({
 					price,
 					currency,
 					quantity: 1,
-					variant,
-					metadata: { color, size },
+					variant: variantLabel || variant,
+					metadata: metadataToStore,
 				});
 			} catch (err) {
 				console.error("[AddToCartButton] Failed:", err);

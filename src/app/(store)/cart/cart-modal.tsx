@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { type CartLine, useCartStore } from "@/context/cart-store";
 import { useTranslations } from "@/i18n/client";
-import { formatMoney, formatProductName } from "@/lib/utils";
+import { collectVariantDisplayParts, formatMoney, formatProductName } from "@/lib/utils";
 import { YnsLink } from "@/ui/yns-link";
 import { CartAsideContainer } from "./cart-aside";
 
@@ -45,7 +45,11 @@ export function CartModalPage() {
 					) : (
 						<ul role="list" className="-my-6 divide-y divide-neutral-200">
 							{lines.map((line) => {
-								const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+								const variantParts = collectVariantDisplayParts({
+									additional: [line.metadata?.color, line.metadata?.size],
+									variant: [line.variant, line.metadata?.variant],
+									metadata: line.metadata,
+								});
 
 								return (
 									<li

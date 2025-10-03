@@ -170,7 +170,7 @@ export default async function SingleProductPage(props: {
 		id: product.id,
 		name: product.name,
 		images,
-		metadata: { ...(product.metadata ?? {}) },
+		metadata: { ...(product.metadata ?? {}), ...(selectedPrice?.metadata ?? {}) },
 		default_price: {
 			id: selectedPrice?.id ?? product.default_price?.id ?? undefined,
 			unit_amount: displayAmount,
@@ -326,6 +326,7 @@ export default async function SingleProductPage(props: {
 							variant={product.metadata?.variant}
 							color={selectedPrice?.metadata?.color}
 							size={selectedPrice?.metadata?.size}
+							metadata={selectedPrice?.metadata}
 							disabled={forceDisabled}
 						/>
 					</div>
