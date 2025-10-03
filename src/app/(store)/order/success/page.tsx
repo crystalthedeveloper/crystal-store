@@ -110,7 +110,7 @@ export default async function OrderDetailsPage({
 						typeof product === "object" && product && !product.deleted
 							? ((product.metadata ?? {}) as Record<string, string | undefined>)
 							: {};
-					const combinedMetadata = { ...productMetadata, ...priceMetadata };
+					const variantMetadata = Object.keys(priceMetadata).length > 0 ? priceMetadata : productMetadata;
 					const baseName =
 						typeof product === "object" && product && !product.deleted
 							? (product.name ?? line.description ?? "Product")
@@ -121,7 +121,7 @@ export default async function OrderDetailsPage({
 					const variantParts = collectVariantDisplayParts({
 						additional: [color, size],
 						variant: variantFallback,
-						metadata: combinedMetadata,
+						metadata: variantMetadata,
 					});
 					const displayName = formatProductName(baseName, variantParts);
 					return (
