@@ -502,10 +502,9 @@ export async function POST(req: Request) {
 									printful_discontinued: "true",
 								};
 
-								updates.push(
-									(async () => {
+									const updatePromise = (async () => {
 										try {
-											return await stripe.prices.update(candidate.priceId!, { metadata });
+											return await stripe.prices.update(candidate.priceId as string, { metadata });
 										} catch (err) {
 											console.error(
 												`⚠️ Failed to flag price ${candidate.priceId} as Printful discontinued`,
@@ -518,7 +517,7 @@ export async function POST(req: Request) {
 													console.info(
 														`ℹ️ Flagged product ${candidate.productId} as Printful discontinued instead of price ${candidate.priceId}`,
 													);
-													return await stripe.prices.retrieve(candidate.priceId!);
+													return await stripe.prices.retrieve(candidate.priceId as string);
 												} catch (productErr) {
 													console.error(
 														`⚠️ Also failed to flag product ${candidate.productId} as discontinued`,
@@ -530,8 +529,9 @@ export async function POST(req: Request) {
 											throw err;
 										}
 									})();
-								);
-							}
+
+									updates.push(updatePromise);
+								}
 
 							if (updates.length > 0) {
 								await Promise.allSettled(updates);
