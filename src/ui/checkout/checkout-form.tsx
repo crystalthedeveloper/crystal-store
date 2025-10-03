@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/context/cart-store";
-import { formatProductName } from "@/lib/utils";
+import { collectVariantDisplayParts, formatProductName } from "@/lib/utils";
 
 type CheckoutSessionResponse = {
 	url?: string;
@@ -30,7 +30,11 @@ export default function CheckoutForm({
 
 	const cart = lines.map((line) => {
 		const baseName = line.name ?? "Unknown";
-		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant, line.metadata?.variant];
+		const variantParts = collectVariantDisplayParts({
+			additional: [line.metadata?.color, line.metadata?.size],
+			variant: [line.variant, line.metadata?.variant],
+			metadata: line.metadata,
+		});
 		const displayName = formatProductName(baseName, variantParts);
 		const metadata = { ...(line.metadata ?? {}) };
 		if (line.variant && !metadata.variant) {

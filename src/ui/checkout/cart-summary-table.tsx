@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { type CartLine, useCartStore } from "@/context/cart-store";
 import { useTranslations } from "@/i18n/client";
-import { formatMoney, formatProductName } from "@/lib/utils";
+import { collectVariantDisplayParts, formatMoney, formatProductName } from "@/lib/utils";
 import { CartAmountWithSpinner } from "@/ui/checkout/cart-items.client";
 import { YnsLink } from "@/ui/yns-link";
 
@@ -61,12 +61,11 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 					<TableBody>
 						{lines.map((line: CartLine) => {
 							const lineTotal = line.price * line.quantity;
-							const variantParts = [
-								line.metadata?.color,
-								line.metadata?.size,
-								line.variant,
-								line.metadata?.variant,
-							];
+							const variantParts = collectVariantDisplayParts({
+								additional: [line.metadata?.color, line.metadata?.size],
+								variant: [line.variant, line.metadata?.variant],
+								metadata: line.metadata,
+							});
 
 							return (
 								<TableRow key={`${line.id}-${line.priceId}`}>
@@ -152,12 +151,11 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 			<div className="space-y-4 sm:hidden">
 				{lines.map((line: CartLine) => {
 					const lineTotal = line.price * line.quantity;
-					const variantParts = [
-						line.metadata?.color,
-						line.metadata?.size,
-						line.variant,
-						line.metadata?.variant,
-					];
+					const variantParts = collectVariantDisplayParts({
+						additional: [line.metadata?.color, line.metadata?.size],
+						variant: [line.variant, line.metadata?.variant],
+						metadata: line.metadata,
+					});
 					return (
 						<div key={`${line.id}-${line.priceId}`} className="flex gap-3 rounded-lg border p-3 shadow-sm">
 							{line.image ? (

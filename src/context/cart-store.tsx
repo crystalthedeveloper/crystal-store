@@ -72,9 +72,15 @@ export const useCartStore = create<CartState>((set, get) => ({
 			let newLines;
 
 			if (existing) {
-				// Merge by increasing quantity
+				// Merge by increasing quantity and preserving enriched metadata
 				newLines = state.lines.map((l) =>
-					isSameLine(l, line) ? { ...l, quantity: l.quantity + line.quantity } : l,
+					isSameLine(l, line)
+						? {
+								...l,
+								quantity: l.quantity + line.quantity,
+								metadata: { ...(l.metadata ?? {}), ...(line.metadata ?? {}) },
+							}
+						: l,
 				);
 			} else {
 				newLines = [...state.lines, line];

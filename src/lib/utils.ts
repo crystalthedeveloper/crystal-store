@@ -88,6 +88,50 @@ export const deslugify = (slug: string) =>
 		.join(" ");
 
 type VariantInput = string | null | undefined | (string | null | undefined)[];
+type VariantMetadata = Record<string, string | undefined> | null | undefined;
+
+const VARIANT_METADATA_KEYWORDS = ["color", "colour", "size", "variant", "style", "option", "name"];
+const VARIANT_METADATA_DENY_PATTERNS = [
+	/(?:^|_)sku/, // product SKU codes
+	/(?:^|[-_])id$/, // ids and identifiers
+	/price/,
+	/amount/,
+	/cost/,
+	/image/,
+	/url/,
+	/slug/,
+	/description/,
+	/category/,
+	/product/,
+];
+
+const shouldUseVariantMetadataValue = (key: string, value: string | undefined) => {
+	if (!value) return false;
+	const trimmed = value.trim();
+	if (!trimmed) return false;
+	if (!/[a-z]/i.test(trimmed)) return false;
+
+	const normalizedKey = key.toLowerCase();
+	if (VARIANT_METADATA_DENY_PATTERNS.some((pattern) => pattern.test(normalizedKey))) {
+		return false;
+	}
+
+	return VARIANT_METADATA_KEYWORDS.some((keyword) => normalizedKey.includes(keyword));
+};
+
+const extractVariantMetadataValues = (metadata: VariantMetadata): string[] => {
+	if (!metadata) return [];
+
+	const values: string[] = [];
+	for (const [key, rawValue] of Object.entries(metadata)) {
+		if (!shouldUseVariantMetadataValue(key, rawValue)) continue;
+		const trimmed = rawValue?.trim();
+		if (!trimmed) continue;
+		values.push(trimmed);
+	}
+
+	return values;
+};
 
 const normalizeVariantPart = (part: string) => {
 	const trimmed = part.trim();
@@ -152,6 +196,34 @@ const mergeUniqueVariantParts = (existing: string[], additional: string[]): stri
 	}
 
 	return merged;
+};
+
+export const collectVariantDisplayParts = ({
+	variant,
+	metadata,
+	additional,
+}: {
+	variant?: VariantInput;
+	metadata?: VariantMetadata;
+	additional?: VariantInput;
+} = {}) => {
+	const parts: (string | null | undefined)[] = [];
+
+	if (additional !== undefined) {
+		const entries = Array.isArray(additional) ? additional : [additional];
+		parts.push(...entries);
+	}
+
+	if (variant !== undefined) {
+		const entries = Array.isArray(variant) ? variant : [variant];
+		parts.push(...entries);
+	}
+
+	if (metadata) {
+		parts.push(...extractVariantMetadataValues(metadata));
+	}
+
+	return mergeVariantParts(parts);
 };
 
 export const formatProductName = (name: string, variant?: VariantInput) => {

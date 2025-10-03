@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { createStripeClient } from "@/lib/stripe/client";
-import { formatMoney, formatProductName } from "@/lib/utils";
+import { collectVariantDisplayParts, formatMoney, formatProductName } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -110,6 +110,7 @@ export default async function OrderDetailsPage({
 						typeof product === "object" && product && !product.deleted
 							? ((product.metadata ?? {}) as Record<string, string | undefined>)
 							: {};
+					const combinedMetadata = { ...productMetadata, ...priceMetadata };
 					const baseName =
 						typeof product === "object" && product && !product.deleted
 							? (product.name ?? line.description ?? "Product")
@@ -117,7 +118,11 @@ export default async function OrderDetailsPage({
 					const color = priceMetadata.color ?? productMetadata.color;
 					const size = priceMetadata.size ?? productMetadata.size;
 					const variantFallback = priceMetadata.variant ?? productMetadata.variant;
-					const variantParts = [color, size, variantFallback];
+					const variantParts = collectVariantDisplayParts({
+						additional: [color, size],
+						variant: variantFallback,
+						metadata: combinedMetadata,
+					});
 					const displayName = formatProductName(baseName, variantParts);
 					return (
 						<li key={line.id} className="flex items-start gap-6 rounded-lg border p-4 shadow-sm">
