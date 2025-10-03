@@ -180,7 +180,7 @@ export async function POST(req: Request) {
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-				cancel_url: `${baseUrl}${basePath}/cart`,
+				cancel_url: `${baseUrl}${basePath}/order/subscription-cancel?subscription_session_id={CHECKOUT_SESSION_ID}`,
 			});
 
 			const paymentSession = await stripe.checkout.sessions.create({
@@ -189,6 +189,9 @@ export async function POST(req: Request) {
 				billing_address_collection: "required",
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
+				metadata: {
+					subscription_session_id: subscriptionSession.id,
+				},
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}&subscription_session_id=${subscriptionSession.id}`,
 				// If the user navigates back from the payment (one-time) checkout, send them back to the
 				// subscription checkout session instead of the cart so they can complete the subscription first.
@@ -197,7 +200,7 @@ export async function POST(req: Request) {
 
 			await stripe.checkout.sessions.update(subscriptionSession.id, {
 				metadata: {
-					...(subscriptionSession.metadata ?? {}),
+					...toStringRecord(subscriptionSession.metadata),
 					payment_session_id: paymentSession.id,
 				},
 			});

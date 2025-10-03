@@ -69,17 +69,19 @@ export default function CheckoutForm({
 			});
 
 			if (!res.ok) {
-				throw new Error(`❌ API error: ${res.status} ${await res.text()}`);
+				const errorBody = (await res.text()).trim();
+				const details = errorBody ? `${res.status} ${errorBody}` : `${res.status}`;
+				throw new Error(`Checkout request failed: ${details}`);
 			}
 
 			const data = (await res.json()) as CheckoutSessionResponse;
 
 			if (data.error) throw new Error(data.error);
-			if (!data.url) throw new Error("❌ Missing Checkout session URL");
+			if (!data.url) throw new Error("Missing Checkout session URL");
 
 			window.location.href = data.url;
 		} catch (err) {
-			console.error("❌ Checkout redirect error:", err);
+			console.error("Checkout redirect error:", err);
 			setErrorMessage(err instanceof Error ? err.message : "Unable to start checkout. Please try again.");
 		} finally {
 			setLoading(false);
