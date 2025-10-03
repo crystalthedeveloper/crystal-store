@@ -1,211 +1,77 @@
-# Your Next Store
+# Crystal Store
 
-<div align="center">
-<table>
-<tr>
-<td>
-	<a href="https://yournextstore.com/discord"><img src="https://img.shields.io/discord/1206629600483082341?style=for-the-badge&logo=discord&logoColor=white&labelColor=%235865F2&color=%23555" alt="Join Discord" /></a>
-</td>
-<td>
-	<a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore&env=ENABLE_EXPERIMENTAL_COREPACK,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY,STRIPE_CURRENCY&envDescription=Read%20more%20about%20required%20env%20variables%20in%20YNS&envLink=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore%2Ftree%2Fupcoming%3Ftab%3Dreadme-ov-file%23add-environmental-variables&project-name=yournextstore&repository-name=yournextstore&demo-title=Your%20Next%20Store&demo-description=A%20Next.js%20boilerplate%20for%20building%20your%20online%20store%20instantly%3A%20simple%2C%20quick%2C%20powerful.&demo-url=https%3A%2F%2Fdemo.yournextstore.com%2F&demo-image=https%3A%2F%2Fyournextstore.com%2Fdemo.png"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
-</td>
-<td>
-<a href="https://www.producthunt.com/posts/your-next-store?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-your&#0045;next&#0045;store">
-	<picture>
-		<source
-			media="(prefers-color-scheme: dark)"
-			srcSet="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=459751&theme=dark"
-		/>
-		<img
-			src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=459751&theme=light"
-			height="36"
-			alt="Your&#0032;Next&#0032;Store - E&#0045;Commerce&#0032;with&#0032;Stripe&#0032;as&#0032;the&#0032;backend | Product Hunt"
-		/>
-	</picture>
-</a>
-</td>
-</tr>
-</table>
+Crystal Store is a Next.js e-commerce storefront powered by Stripe Checkout. It ships with responsive layouts, localized content, product discovery helpers, and a production-ready checkout flow so you can start selling instantly.
 
-👉 [demo.yournextstore.com](https://demo.yournextstore.com/) 👈
+## Features
+- **Stripe-first checkout** with support for single payments, linked payment sessions, and order confirmation pages.
+- **Localized UI** using the in-house i18n layer for server and client components.
+- **Variant-aware product catalog** that merges product and price metadata for consistent naming across the app.
+- **Modern component library** built with Tailwind CSS, Radix UI primitives, and custom design tokens.
+- **API integrations** for analytics, blob storage, newsletter signups, and optional AI-powered recommendations.
 
-</div>
+## Tech Stack
+- [Next.js 15](https://nextjs.org/) with the App Router
+- React 19 with Server Components
+- TypeScript + Biome for linting and formatting
+- Tailwind CSS with Radix UI
+- Stripe SDKs for payments and webhooks
+- Vitest + Testing Library for unit tests
 
-## Demo
+## Getting Started
+### Prerequisites
+- Node.js 20 or later (22.x recommended)
+- npm 11.5.2 (installed automatically via Corepack)
+- A Stripe account in Test mode
 
-https://github.com/user-attachments/assets/64197310-29bd-4dd3-a736-1494340e20e8
-
-
-## Quick setup on Vercel:
-1. Click here to deploy this repo on [Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore&env=ENABLE_EXPERIMENTAL_COREPACK,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY,STRIPE_CURRENCY&envDescription=Read%20more%20about%20required%20env%20variables%20in%20YNS&envLink=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore%2Ftree%2Fupcoming%3Ftab%3Dreadme-ov-file%23add-environmental-variables&project-name=yournextstore&repository-name=yournextstore&demo-title=Your%20Next%20Store&demo-description=A%20Next.js%20boilerplate%20for%20building%20your%20online%20store%20instantly%3A%20simple%2C%20quick%2C%20powerful.&demo-url=https%3A%2F%2Fdemo.yournextstore.com%2F&demo-image=https%3A%2F%2Fyournextstore.com%2Fdemo.png)
-2. Create new account on [Stripe](https://dashboard.stripe.com/register)
-
-### Stripe: 
-- Add at least one product in stripe with this two metadata
-	- slug = "your-product-url-name" example hiking-t-shirt
-	- category = "apparel"
-- Get two api keys from your stripe developer [dashboard](https://dashboard.stripe.com/apikeys) 
-	- NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-	- STRIPE_SECRET_KEY
-
-### Vercel: 
-- Add those informations as **Environment Variables** in your project settings 
-	- ENABLE_EXPERIMENTAL_COREPACK = "1"
-	- STRIPE_CURRENCY = "usd" or any other in iso format
-	- NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = from stripe
-	- STRIPE_SECRET_KEY = from stripe
-
-## Prerequisites
-
-### Node.js 20+
-
-We officially support the current LTS version – 20 at the time of writing. YNS should work on versions 18, 20, and 22. If you're using one of those versions and encounter a problem, please report it!
-
-#### Installing Node.js
-
-Follow the instructions for your operating system found here: [nodejs.org/en/download](https://nodejs.org/en/download)
-
-### bun 1.0+
-
-We officially support bun version 1.0+, but we will do our best to keep it compatible with npm and yarn.
-
-#### Installing bun
-
-The easiest way to install bun is via their installation script:
-
+### Installation
 ```bash
-curl -fsSL https://bun.sh/install | bash
+npm install
 ```
 
-Alternatively, follow the instructions for your operating system found here: [bun.sh/docs/installation](https://bun.sh/docs/installation)
+Copy the example environment file and adjust values as needed:
+```bash
+cp .env.example .env
+```
 
-## Create Stripe account
+Start the development server:
+```bash
+npm run dev
+```
 
-YNS is tightly integrated with [Stripe](https://stripe.com), so you need a Stripe account to use Your Next Store. Follow the instructions from Stripe to [create an account](https://dashboard.stripe.com/register).
+Visit [http://localhost:3000](http://localhost:3000) to see the storefront.
 
-It's important to remember that Stripe works in two different modes: **Test Mode** and **Production Mode**. For local development and testing purposes, you should use the **Test Mode**. This way, Stripe will never charge real money, and you can use special test credentials such as credit card numbers and BLIK numbers to complete payments. For more detailed information, please refer to the Stripe documentation at [docs.stripe.com/testing](https://docs.stripe.com/testing).
+## Environment Variables
+The project relies on Stripe and optional third-party services. The most important variables are:
 
-Once you're ready to sell your products to real customers, you must switch **Test Mode** to **Production Mode** in Stripe and generate new credentials.
+| Variable | Required | Description |
+| --- | :---: | --- |
+| `ENABLE_EXPERIMENTAL_COREPACK` | Yes | Enables npm via Corepack in managed deployments. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key for the storefront. |
+| `STRIPE_SECRET_KEY` | Yes | Stripe secret key used on the server. |
+| `STRIPE_CURRENCY` | Yes | Default currency (e.g. `usd`). |
+| `NEXT_PUBLIC_URL` | Optional | Public base URL of the store. |
+| `STRIPE_WEBHOOK_SECRET` | Optional | Required when handling Stripe webhooks. |
 
-> [!TIP]
-> This step will require additional verification from Stripe, so we suggest you start the process immediately.
+Refer to `.env.example` for the complete list of supported variables.
 
-## Add Environment Variables
+## Stripe Setup
+1. Create a product in the Stripe Dashboard with at least one active price.
+2. Add the following metadata to each product or price:
+   - `slug` – used for storefront URLs.
+   - `category` – optional grouping label.
+   - `variant` plus any `color`/`size` fields for variant handling.
+3. Use the generated Stripe keys in your `.env` file.
+4. (Optional) Configure a webhook endpoint at `/api/stripe-webhook` and set `STRIPE_WEBHOOK_SECRET`.
 
-For YNS to work, you'll need to define a few environmental variables. For local development and testing, you may create an empty `.env` file and copy the contents of `.env.example` into it.
+## Available Scripts
+- `npm run dev` – start the development server.
+- `npm run build` – create a production build.
+- `npm start` – run the production build locally.
+- `npm run lint` – run Biome checks with auto-fixes.
+- `npm test` – run the Vitest suite.
 
-To set env variables in production, you'll need to consult the documentation of your chosen hosting provider.
+## Deployment
+Deploy the app to your preferred platform (Vercel, Docker, or custom hosting). Ensure your environment variables are configured before running `npm run build` in CI.
 
-### Required Environment Variables
-
-- `ENABLE_EXPERIMENTAL_COREPACK` – Vercel only: Set to `1` to enable Corepack
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` – Publishable key from Stripe.
-- `STRIPE_SECRET_KEY` – Secret key from Stripe.
-- `STRIPE_CURRENCY` – This is used to determine your store's currency. Currently, only a single currency is allowed, and it should be a three-letter ISO code (e.g., `usd`).
-- `NEXT_PUBLIC_URL` – **Optional on Vercel** The address of your store without the trailing slash, i.e., `https://demo.yournextstore.com`. When building for the first time, you should set it to any valid URL, i.e. `http://localhost:3000`.
-
-https://github.com/yournextstore/.github/assets/200613/01d27f69-00dc-446e-bc81-5dea2587f346
-
-### Optional Environment Variables
-
-- `NEXT_PUBLIC_UMAMI_WEBSITE_ID` – Umami website ID for analytics
-- `NEXT_PUBLIC_NEWSLETTER_ENDPOINT` – **Preview**: The endpoint for the newsletter form in the future. It should accept POST requests with a JSON `{ email: string }` and return JSON `{ status: number }`.
-- `STRIPE_WEBHOOK_SECRET` – **Preview**: Stripe Webhook secret for handling events from Stripe. Read more below.
-- `ENABLE_STRIPE_TAX` – **Preview**: Set to any value (i.e., `1`) to enable Stripe Tax in YNS. Read more below.
-- `NEXT_PUBLIC_LANGUAGE` - The locale of the store (i.e., `en-US`)
-
-## Run the store
-
-After following the above steps, run `bun install` to install the required dependencies, and then run `bun dev` to start the development server on your machine. Your Next Store will be available at [localhost:3000](http://localhost:3000)
-
-## Add products
-
-Your Next Store gets all the products, prices, descriptions, and categories from Stripe. So, if you know Stripe already, you'll feel right at home!
-
-You need to add products to the Stripe Dashboard to show in YNS. After logging in, click **More** in the left sidebar and select **Product catalogue**. You may also use the direct link:
-
-- In **Test Mode**: [dashboard.stripe.com/test/products](https://dashboard.stripe.com/test/products)
-- In **Production Mode**: [dashboard.stripe.com/products](https://dashboard.stripe.com/products)
-
-Then, click on **Add product** and fill in all the required information:
-
-- name,
-- description,
-- price – currently, only _One-off_ payments are supported,
-- a product image.
-
-### Metadata
-
-Additionally, Your Next Store uses product metadata to provide more context information about the products. You can specify the following metadata fields:
-
-| Field      | Required | Description                                                                     |
-| ---------- | :------: | ------------------------------------------------------------------------------- |
-| `slug`     |   Yes    | The product slug is used for URLs. Needs to be unique except for variants.      |
-| `category` |    No    | The product category used for grouping products.                                |
-| `order`    |    No    | The product order used for sorting products. Lower numbers are displayed first. |
-| `variant`  |    No    | The product variant slug. Read below for details.                               |
-
-Now you should see all added products in Your Next Store.
-
-## Variants
-
-Your Next Store supports simple product variants. To create a product with variants, you must add multiple products to Stripe with the same `slug` metadata field. YNS uses the `variant` metadata field to distinguish between different variants of the same product. For example, if you have a T-shirt in multiple sizes, you can create three products with the `slug` of `t-shirt` and `variant` values of `small`, `medium`, and `large`.
-
-Variants are displayed on the product page. Variants can have different prices, descriptions, and images. It's important to note that the `category` should be the same for all variants of the same product for the best browsing experience.
-
-> [!NOTE]
-> In the future, we plan to add the possibility of editing products and variants inside a built-in admin dashboard. If you have any ideas or suggestions, please let us know!
-
-## Stripe Webhooks
-
-Your Next Store uses Stripe Webhooks to handle events from Stripe. Currently, the endpoint is used to automatically revalidate cart page and to create tax transaction (if enabled). To set up Webhooks, follow the Stripe docs. The exact steps depend on whether you've activated Stripe Workbench in your Stripe account: [docs.stripe.com/webhooks#add-a-webhook-endpoint](https://docs.stripe.com/webhooks#add-a-webhook-endpoint).
-
-The endpoint for the webhook is `https://{YOUR_DOMAIN}/api/stripe-webhook`. The only required event is `payment_intent.succeeded`. When the webhook is configured in Stripe, set the `STRIPE_WEBHOOK_SECRET` environment variable to the secret key created by Stripe.
-
-> [!NOTE]
-> In the future, we plan to add more events to the webhook to improve the user experience.
-
-## Stripe Tax
-
-Your Next Store comes with a preview of Stripe Tax support. To enable it, set the `ENABLE_STRIPE_TAX` environment variable to any value (i.e., `1`).
-
-For this feature to work, you must set your Tax settings in Stripe Dashboard: [dashboard.stripe.com/register/tax](https://dashboard.stripe.com/register/tax). When enabled and configured, taxes will be automatically calculated and added to the total price of the product based on:
-
-- product pricing - tax can be inclusive or exclusive
-- product tax code
-- customer's address
-- customer's tax ID
-
-> [!WARNING]
-> This feature is still in the early stage, and there could be edge cases that are not supported. We're actively working on it, so if you encounter any problems or have any suggestions, please let us know!
-
-## Production Deployment
-
-### Vercel
-
-To deploy on Vercel, click the following button, set up your GitHub repository and environment variables, and click **Deploy**. Make sure to set the `ENABLE_EXPERIMENTAL_COREPACK` variable to `1`.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore&env=ENABLE_EXPERIMENTAL_COREPACK,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY,STRIPE_CURRENCY&envDescription=Read%20more%20about%20required%20env%20variables%20in%20YNS&envLink=https%3A%2F%2Fgithub.com%2Fyournextstore%2Fyournextstore%2Ftree%2Fupcoming%3Ftab%3Dreadme-ov-file%23add-environmental-variables&project-name=yournextstore&repository-name=yournextstore&demo-title=Your%20Next%20Store&demo-description=A%20Next.js%20boilerplate%20for%20building%20your%20online%20store%20instantly%3A%20simple%2C%20quick%2C%20powerful.&demo-url=https%3A%2F%2Fdemo.yournextstore.com%2F&demo-image=https%3A%2F%2Fyournextstore.com%2Fdemo.png)
-
-### Your Own VPS
-
-Description coming soon.
-
-### Docker
-
-To deploy on Docker, follow these steps:
-
-1. Clone this repository into an empty folder and create the .env file in the repository as described [here](#add-environment-variables).
-2. Set the variable DOCKER=1 in .env
-3. Execute `bun run docker:build`.
-4. After that, you can start the container with `bun run docker:run`.
-
-## That's all
-
-YNS evolves each day, and we actively seek feedback on what to improve. If you have any questions or problems, don't hesitate to get in touch with us on our Discord Server.
-
-## FAQ
-
-### Sometimes, you use `structuredClone` to pass data from server to client components. Why?
-
-Only certain types of data can be passed from the server to the client directly. Data from Stripe SDK often contains class instances. To work around this, we use `structuredClone` to eliminate them and pass just plain old objects to the client.
+## License
+This project is distributed under the terms of the [AGPL-3.0-only license](./LICENSE-AGPL.md). Commercial licensing options are available in [LICENSE-Commercial.md](./LICENSE-Commercial.md).
