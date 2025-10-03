@@ -195,13 +195,12 @@ export async function POST(req: Request) {
 				cancel_url: `${baseUrl}${basePath}/cart`,
 			});
 
-			await stripe.checkout.sessions.update(subscriptionSession.id, {
-				metadata: {
-					...(subscriptionSession.metadata ?? {}),
-					payment_session_id: paymentSession.id,
-				},
-				cancel_url: `${baseUrl}${basePath}/order/cancelled?subscription_session_id=${subscriptionSession.id}&payment_session_id=${paymentSession.id}`,
-			});
+				await stripe.checkout.sessions.update(subscriptionSession.id, {
+					metadata: {
+						...(subscriptionSession.metadata ?? {}),
+						payment_session_id: paymentSession.id,
+					},
+				});
 
 			if (!paymentSession.url) {
 				return NextResponse.json({ error: "❌ Stripe did not return a URL" }, { status: 500 });
