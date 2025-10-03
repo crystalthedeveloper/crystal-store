@@ -129,6 +129,16 @@ function findIgnoreOrDiscontinuedReason(meta: Record<string, unknown> | undefine
 	return walk(meta, 0);
 }
 
+function isAutoManagedPriceError(err: unknown): boolean {
+	if (!err || typeof err !== "object") return false;
+	const message = "message" in err ? String((err as { message?: unknown }).message ?? "") : "";
+	if (message.toLowerCase().includes("created by stripe automatically")) {
+		return true;
+	}
+	const type = "type" in err ? String((err as { type?: unknown }).type ?? "") : "";
+	return type === "invalid_request_error" && message.toLowerCase().includes("cannot be updated");
+}
+
 /**
  * Check a product/price metadata object for flags that indicate Printful should be ignored
  * or that the variant/product has been discontinued. Returns true if the item should be skipped.
@@ -493,15 +503,33 @@ export async function POST(req: Request) {
 								};
 
 								updates.push(
-									stripe.prices
-										.update(candidate.priceId, { metadata })
-										.catch((err) => {
+									(async () => {
+										try {
+											return await stripe.prices.update(candidate.priceId!, { metadata });
+										} catch (err) {
 											console.error(
 												`⚠️ Failed to flag price ${candidate.priceId} as Printful discontinued`,
 												err,
 											);
+
+											if (candidate.productId && isAutoManagedPriceError(err)) {
+												try {
+													await stripe.products.update(candidate.productId, { metadata });
+													console.info(
+														`ℹ️ Flagged product ${candidate.productId} as Printful discontinued instead of price ${candidate.priceId}`,
+													);
+													return await stripe.prices.retrieve(candidate.priceId!);
+												} catch (productErr) {
+													console.error(
+														`⚠️ Also failed to flag product ${candidate.productId} as discontinued`,
+														productErr,
+													);
+												}
+											}
+
 											throw err;
-										}),
+										}
+									})();
 								);
 							}
 

@@ -3,6 +3,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	Table,
 	TableBody,
@@ -18,8 +19,18 @@ import { collectVariantDisplayParts, formatMoney, formatProductName } from "@/li
 import { CartAmountWithSpinner } from "@/ui/checkout/cart-items.client";
 import { YnsLink } from "@/ui/yns-link";
 
+const rawBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const normalizedBasePath = rawBasePath === "" || rawBasePath.startsWith("/") ? rawBasePath : `/${rawBasePath}`;
+const HOME_PATH = "/";
+const CART_PATHS = [
+	"/cart",
+	normalizedBasePath ? `${normalizedBasePath}/cart`.replace(/\/+$/, "") : null,
+].filter(Boolean) as string[];
+
 export const CartSummaryTable = ({ locale }: { locale: string }) => {
 	const t = useTranslations("/cart.page.summaryTable");
+	const router = useRouter();
+	const pathname = usePathname();
 
 	// Zustand state
 	const lines = useCartStore((s) => s.lines);
@@ -32,6 +43,16 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 
 	const currency = lines[0]?.currency?.toLowerCase() ?? "usd";
 	const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
+
+	useEffect(() => {
+		if (!mounted) return;
+		if (lines.length > 0) return;
+		if (!pathname) return;
+		const normalizedPath = pathname.replace(/\/+$/, "");
+		if (CART_PATHS.includes(normalizedPath)) {
+			router.replace(HOME_PATH);
+		}
+	}, [lines.length, mounted, pathname, router]);
 
 	if (!mounted) {
 		return <div className="relative w-full overflow-auto" />;
