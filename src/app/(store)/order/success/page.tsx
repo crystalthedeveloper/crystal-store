@@ -51,6 +51,12 @@ export default async function OrderDetailsPage({
 	const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined;
 	const subscriptionSessionId =
 		typeof sp.subscription_session_id === "string" ? sp.subscription_session_id : undefined;
+	const skipSubscriptionRedirectParam =
+		typeof sp.skip_subscription_redirect === "string" ? sp.skip_subscription_redirect : undefined;
+	const skipSubscriptionRedirect =
+		typeof skipSubscriptionRedirectParam === "string"
+			? ["1", "true", "yes"].includes(skipSubscriptionRedirectParam.toLowerCase())
+			: false;
 
 	if (!sessionId) return <div>Missing session_id</div>;
 
@@ -67,10 +73,16 @@ export default async function OrderDetailsPage({
 		);
 	}
 
+	let initialSubscriptionSession: Stripe.Checkout.Session | null = null;
+
 	if (subscriptionSessionId && subscriptionSessionId !== sessionId) {
-		const subscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
-		if (subscriptionSession?.url) {
-			redirect(subscriptionSession.url);
+		try {
+			initialSubscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
+			if (!skipSubscriptionRedirect && initialSubscriptionSession?.url) {
+				redirect(initialSubscriptionSession.url);
+			}
+		} catch (error) {
+			console.error("Unable to load subscription checkout session", error);
 		}
 	}
 
@@ -81,16 +93,47 @@ export default async function OrderDetailsPage({
 	if (!session) return <div>Order not found</div>;
 
 	const linkedSessions: Stripe.Checkout.Session[] = [session];
-	const linkedPaymentSessionId = session.metadata?.payment_session_id;
+	const linkedSessionsMap = new Map<string, Stripe.Checkout.Session | null>();
 
-	if (typeof linkedPaymentSessionId === "string" && linkedPaymentSessionId) {
+	if (
+		initialSubscriptionSession &&
+		initialSubscriptionSession.id !== session.id &&
+		initialSubscriptionSession.status === "complete"
+	) {
+		linkedSessionsMap.set(initialSubscriptionSession.id, initialSubscriptionSession);
+	}
+
+	const linkedPaymentSessionId = session.metadata?.payment_session_id;
+	const linkedSubscriptionSessionId = session.metadata?.subscription_session_id;
+
+	const candidateSessionIds = [
+		typeof linkedPaymentSessionId === "string" ? linkedPaymentSessionId : undefined,
+		typeof linkedSubscriptionSessionId === "string" ? linkedSubscriptionSessionId : undefined,
+		subscriptionSessionId && subscriptionSessionId !== session.id ? subscriptionSessionId : undefined,
+	];
+
+	for (const candidate of candidateSessionIds) {
+		if (!candidate || candidate === session.id) continue;
+		if (linkedSessionsMap.has(candidate)) continue;
+		linkedSessionsMap.set(candidate, null);
+	}
+
+	for (const [id, cachedSession] of linkedSessionsMap) {
+		if (cachedSession) {
+			if (cachedSession.status === "complete") {
+				linkedSessions.push(cachedSession);
+			}
+			continue;
+		}
+
 		try {
-			const linkedSession = await stripe.checkout.sessions.retrieve(linkedPaymentSessionId, {
+			const linkedSession = await stripe.checkout.sessions.retrieve(id, {
 				expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
 			});
 
-			if (linkedSession) {
+			if (linkedSession && linkedSession.status === "complete") {
 				linkedSessions.push(linkedSession);
+				linkedSessionsMap.set(id, linkedSession);
 			}
 		} catch (error) {
 			console.error("Unable to load linked checkout session", error);
