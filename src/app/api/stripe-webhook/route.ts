@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PrintfulItem = { sync_variant_id: number; quantity: number };
+type PrintfulCandidate = {
+	payload: PrintfulItem;
+	priceId?: string;
+	priceMetadata?: Record<string, string>;
+	productId?: string;
+	description: string;
+};
 
 function toStringRecord(input: Record<string, unknown>): Record<string, string> {
 	const out: Record<string, string> = {};
@@ -240,12 +247,12 @@ export async function POST(req: Request) {
 				}
 
 				/* ---------------- Sync Printful Order ---------------- */
-				if (env.PRINTFUL_API_KEY) {
-					const candidates = await Promise.all(
-						lineItems.data.map(async (item) => {
-							const price = item.price;
-							const productObj =
-								typeof price?.product === "object" ? (price.product as Stripe.Product) : undefined;
+		if (env.PRINTFUL_API_KEY) {
+			const candidates = await Promise.all(
+				lineItems.data.map(async (item) => {
+					const price = item.price;
+					const productObj =
+						typeof price?.product === "object" ? (price.product as Stripe.Product) : undefined;
 
 							const category = (productObj?.metadata?.category ?? "").toLowerCase();
 
@@ -341,15 +348,25 @@ export async function POST(req: Request) {
 								return null;
 							}
 
-							return {
+						return {
+							payload: {
 								sync_variant_id: syncIdNum,
 								quantity: item.quantity ?? 1,
-							} as PrintfulItem;
-						}),
-					);
+							},
+							priceId: price?.id,
+							priceMetadata: price?.metadata ? toStringRecord(price.metadata) : undefined,
+							productId: typeof productObj?.id === "string" ? productObj.id : undefined,
+							description: item.description ?? productObj?.name ?? `variant ${syncIdNum}`,
+						} satisfies PrintfulCandidate;
+					}),
+				);
 
-					const items = candidates.filter(Boolean) as PrintfulItem[];
-					console.log("[printful] eligible apparel items", items);
+				const confirmedCandidates = candidates.filter(Boolean) as PrintfulCandidate[];
+				const items = confirmedCandidates.map((c) => c.payload);
+				console.log(
+					"[printful] eligible apparel items",
+					items.map((entry) => ({ ...entry })),
+				);
 
 					if (items.length > 0) {
 						// Retrieve shipping info
@@ -388,8 +405,10 @@ export async function POST(req: Request) {
 
 						const maxAttempts = 3;
 						let attempt = 0;
-						let attemptItems = items.slice();
+						let attemptCandidates = confirmedCandidates.slice();
+						let attemptItems = attemptCandidates.map((c) => c.payload);
 						let created = false;
+						const removedCandidates: PrintfulCandidate[] = [];
 
 						// Helper to parse discontinued item indexes from Printful error text/JSON
 						const extractDiscontinuedIndexes = (input: string | null): number[] => {
@@ -448,7 +467,10 @@ export async function POST(req: Request) {
 							// Remove the discontinued items by index. Printful indexes items in the order sent (0-based in messages).
 							const toRemove = new Set(discontinuedIdx);
 							const prevCount = attemptItems.length;
-							attemptItems = attemptItems.filter((_, idx) => !toRemove.has(idx));
+							const removed = attemptCandidates.filter((_, idx) => toRemove.has(idx));
+							removedCandidates.push(...removed);
+							attemptCandidates = attemptCandidates.filter((_, idx) => !toRemove.has(idx));
+							attemptItems = attemptCandidates.map((c) => c.payload);
 							console.warn(
 								`⚠️ Removed ${prevCount - attemptItems.length} discontinued Printful item(s) and retrying (attempt ${attempt}/${maxAttempts})`,
 							);
@@ -456,6 +478,36 @@ export async function POST(req: Request) {
 
 						if (!created && attemptItems.length === 0) {
 							console.warn("⚠️ All Printful items were discontinued/removed; not creating a Printful order.");
+						}
+
+						if (removedCandidates.length > 0) {
+							const updates: Array<Promise<Stripe.Price>> = [];
+							const seen = new Set<string>();
+							for (const candidate of removedCandidates) {
+								if (!candidate.priceId) continue;
+								if (seen.has(candidate.priceId)) continue;
+								seen.add(candidate.priceId);
+								const metadata = {
+									...(candidate.priceMetadata ?? {}),
+									printful_discontinued: "true",
+								};
+
+								updates.push(
+									stripe.prices
+										.update(candidate.priceId, { metadata })
+										.catch((err) => {
+											console.error(
+												`⚠️ Failed to flag price ${candidate.priceId} as Printful discontinued`,
+												err,
+											);
+											throw err;
+										}),
+								);
+							}
+
+							if (updates.length > 0) {
+								await Promise.allSettled(updates);
+							}
 						}
 					}
 				}
