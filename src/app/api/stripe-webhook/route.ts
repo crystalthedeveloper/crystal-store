@@ -100,12 +100,31 @@ export async function POST(req: Request) {
 							}
 
 							// Verify variant exists in Printful
-							const ok = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
-								headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
-							}).then((r) => r.ok);
+							const variantRes = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
+								headers: {
+									Authorization: `Bearer ${env.PRINTFUL_API_KEY}`,
+								},
+							});
 
-							if (!ok) {
+							if (!variantRes.ok) {
 								console.warn(`⚠️ Printful variant ${syncIdNum} not found`);
+								return null;
+							}
+
+							const variantPayload = (await variantRes.json().catch(() => null)) as {
+								result?: {
+									sync_variant?: { is_discontinued?: boolean };
+									variant?: { is_discontinued?: boolean };
+								};
+							} | null;
+
+							const isDiscontinued = Boolean(
+								variantPayload?.result?.sync_variant?.is_discontinued ||
+									variantPayload?.result?.variant?.is_discontinued,
+							);
+
+							if (isDiscontinued) {
+								console.warn(`⚠️ Printful variant ${syncIdNum} is discontinued (skipping)`);
 								return null;
 							}
 
