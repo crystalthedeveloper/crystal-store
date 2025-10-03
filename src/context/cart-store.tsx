@@ -15,6 +15,7 @@ export type CartLine = {
 	metadata?: {
 		color?: string;
 		size?: string;
+		variant?: string;
 		[key: string]: string | undefined;
 	};
 };

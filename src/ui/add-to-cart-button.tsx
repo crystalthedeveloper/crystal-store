@@ -47,6 +47,11 @@ export const AddToCartButton = ({
 
 	const isDisabled = pending || !priceId || disabled;
 
+	const variantLabel = [color, size]
+		.map((part) => part?.toString().trim())
+		.filter((part): part is string => Boolean(part && part.length > 0))
+		.join(" / ");
+
 	const handleClick = () => {
 		if (isDisabled) return;
 		setOpen(true);
@@ -60,7 +65,7 @@ export const AddToCartButton = ({
 						productId,
 						priceId,
 						quantity: 1,
-						variant,
+						variant: variantLabel || variant,
 						color,
 						size,
 					}),
@@ -78,8 +83,12 @@ export const AddToCartButton = ({
 					price,
 					currency,
 					quantity: 1,
-					variant,
-					metadata: { color, size },
+					variant: variantLabel || variant,
+					metadata: {
+						...(variantLabel ? { variant: variantLabel } : {}),
+						color,
+						size,
+					},
 				});
 			} catch (err) {
 				console.error("[AddToCartButton] Failed:", err);

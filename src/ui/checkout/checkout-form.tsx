@@ -30,8 +30,12 @@ export default function CheckoutForm({
 
 	const cart = lines.map((line) => {
 		const baseName = line.name ?? "Unknown";
-		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+		const variantParts = [line.metadata?.color, line.metadata?.size, line.variant, line.metadata?.variant];
 		const displayName = formatProductName(baseName, variantParts);
+		const metadata = { ...(line.metadata ?? {}) };
+		if (line.variant && !metadata.variant) {
+			metadata.variant = line.variant;
+		}
 
 		return {
 			name: displayName,
@@ -39,7 +43,7 @@ export default function CheckoutForm({
 			quantity: line.quantity,
 			image: line.image,
 			priceId: line.priceId,
-			metadata: line.metadata ?? {},
+			metadata,
 		};
 	});
 

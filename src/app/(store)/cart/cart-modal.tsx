@@ -45,7 +45,12 @@ export function CartModalPage() {
 					) : (
 						<ul role="list" className="-my-6 divide-y divide-neutral-200">
 							{lines.map((line) => {
-								const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+								const variantParts = [
+									line.metadata?.color,
+									line.metadata?.size,
+									line.variant,
+									line.metadata?.variant,
+								];
 
 								return (
 									<li

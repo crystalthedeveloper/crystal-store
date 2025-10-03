@@ -61,7 +61,12 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 					<TableBody>
 						{lines.map((line: CartLine) => {
 							const lineTotal = line.price * line.quantity;
-							const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+							const variantParts = [
+								line.metadata?.color,
+								line.metadata?.size,
+								line.variant,
+								line.metadata?.variant,
+							];
 
 							return (
 								<TableRow key={`${line.id}-${line.priceId}`}>
@@ -147,7 +152,12 @@ export const CartSummaryTable = ({ locale }: { locale: string }) => {
 			<div className="space-y-4 sm:hidden">
 				{lines.map((line: CartLine) => {
 					const lineTotal = line.price * line.quantity;
-					const variantParts = [line.metadata?.color, line.metadata?.size, line.variant];
+					const variantParts = [
+						line.metadata?.color,
+						line.metadata?.size,
+						line.variant,
+						line.metadata?.variant,
+					];
 					return (
 						<div key={`${line.id}-${line.priceId}`} className="flex gap-3 rounded-lg border p-3 shadow-sm">
 							{line.image ? (
