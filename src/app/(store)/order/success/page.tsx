@@ -51,6 +51,7 @@ export default async function OrderDetailsPage({
 	const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined;
 	const subscriptionSessionId =
 		typeof sp.subscription_session_id === "string" ? sp.subscription_session_id : undefined;
+	const subscriptionWasCancelled = sp.subscription_cancelled === "1";
 
 	if (!sessionId) return <div>Missing session_id</div>;
 
@@ -67,9 +68,16 @@ export default async function OrderDetailsPage({
 		);
 	}
 
+	let subscriptionSession: Stripe.Checkout.Session | null = null;
 	if (subscriptionSessionId && subscriptionSessionId !== sessionId) {
-		const subscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
-		if (subscriptionSession?.url) {
+		subscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId, {
+			expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
+		});
+
+		const subscriptionComplete =
+			subscriptionSession?.status === "complete" || subscriptionSession?.payment_status === "paid";
+
+		if (!subscriptionWasCancelled && !subscriptionComplete && subscriptionSession?.url) {
 			redirect(subscriptionSession.url);
 		}
 	}
@@ -80,7 +88,17 @@ export default async function OrderDetailsPage({
 
 	if (!session) return <div>Order not found</div>;
 
-	const linkedSessions: Stripe.Checkout.Session[] = [session];
+	const linkedSessionsMap = new Map<string, Stripe.Checkout.Session>();
+	linkedSessionsMap.set(session.id, session);
+
+	if (
+		subscriptionSession &&
+		!subscriptionWasCancelled &&
+		(subscriptionSession.payment_status === "paid" || subscriptionSession.status === "complete") &&
+		!linkedSessionsMap.has(subscriptionSession.id)
+	) {
+		linkedSessionsMap.set(subscriptionSession.id, subscriptionSession);
+	}
 	const linkedPaymentSessionId = session.metadata?.payment_session_id;
 
 	if (typeof linkedPaymentSessionId === "string" && linkedPaymentSessionId) {
@@ -89,13 +107,18 @@ export default async function OrderDetailsPage({
 				expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
 			});
 
-			if (linkedSession) {
-				linkedSessions.push(linkedSession);
+			const linkedComplete =
+				linkedSession.payment_status === "paid" || linkedSession.status === "complete";
+
+			if (linkedSession && linkedComplete && !linkedSessionsMap.has(linkedSession.id)) {
+				linkedSessionsMap.set(linkedSession.id, linkedSession);
 			}
 		} catch (error) {
 			console.error("Unable to load linked checkout session", error);
 		}
 	}
+
+	const linkedSessions = Array.from(linkedSessionsMap.values());
 
 	const t = await getTranslations("/order.page");
 	const locale = await getLocale();
@@ -110,6 +133,13 @@ export default async function OrderDetailsPage({
 				<PaymentStatus status={session.payment_status} />
 			</h1>
 			<p className="mt-2">{t("description")}</p>
+
+			{subscriptionWasCancelled ? (
+				<p className="mt-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+					The subscription portion of this order was cancelled. The summary below shows the one-time
+					items that were successfully paid.
+				</p>
+			) : null}
 
 			<dl className="mt-12 space-y-2 text-sm">
 				<dt className="font-semibold text-foreground">{t("orderNumberTitle")}</dt>

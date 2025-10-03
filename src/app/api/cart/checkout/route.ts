@@ -180,7 +180,8 @@ export async function POST(req: Request) {
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-				cancel_url: `${baseUrl}${basePath}/cart`,
+				// Route subscription cancellations to a handler that can resolve the linked payment checkout later.
+				cancel_url: `${baseUrl}${basePath}/order/cancelled?subscription_session_id={CHECKOUT_SESSION_ID}`,
 			});
 
 			const paymentSession = await stripe.checkout.sessions.create({
@@ -190,9 +191,8 @@ export async function POST(req: Request) {
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
 				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}&subscription_session_id=${subscriptionSession.id}`,
-				// If the user navigates back from the payment (one-time) checkout, send them back to the
-				// subscription checkout session instead of the cart so they can complete the subscription first.
-				cancel_url: subscriptionSession?.url ?? `${baseUrl}${basePath}/cart`,
+				// Route payment cancellations directly to the cart so shoppers can review or adjust items.
+				cancel_url: `${baseUrl}${basePath}/cart`,
 			});
 
 			await stripe.checkout.sessions.update(subscriptionSession.id, {
@@ -200,6 +200,7 @@ export async function POST(req: Request) {
 					...(subscriptionSession.metadata ?? {}),
 					payment_session_id: paymentSession.id,
 				},
+				cancel_url: `${baseUrl}${basePath}/order/cancelled?subscription_session_id=${subscriptionSession.id}&payment_session_id=${paymentSession.id}`,
 			});
 
 			if (!paymentSession.url) {
