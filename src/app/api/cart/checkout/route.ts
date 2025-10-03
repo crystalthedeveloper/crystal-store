@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createStripeClient } from "@/lib/stripe/client";
 
+// ✅ Prevent static optimization / pre-rendering
 export const dynamic = "force-dynamic";
 
+// ✅ Env loader
 function requireEnv(name: string): string {
 	const val = process.env[name];
 	if (!val) throw new Error(`❌ Missing required env variable: ${name}`);
@@ -13,92 +15,11 @@ function requireEnv(name: string): string {
 
 type CartItem = {
 	name: string;
-	displayName?: string;
-	variantLabel?: string;
-	price: number; // cents
+	price: number; // already in cents
 	quantity: number;
 	image?: string;
 	priceId?: string;
 	metadata?: Record<string, string | undefined>;
-	currency?: string;
-};
-
-const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
-	const out: Record<string, string> = {};
-	if (!input) return out;
-	for (const [key, value] of Object.entries(input)) {
-		if (typeof value === "string" && value.trim() !== "") {
-			out[key] = value;
-		}
-	}
-	return out;
-};
-
-const mergeMetadata = (
-	...sources: Array<Record<string, string | undefined> | undefined>
-): Record<string, string> => {
-	const merged: Record<string, string> = {};
-	for (const source of sources) {
-		if (!source) continue;
-		for (const [key, value] of Object.entries(source)) {
-			if (typeof value === "string" && value.trim() !== "") {
-				merged[key] = value;
-			}
-		}
-	}
-	return merged;
-};
-
-const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
-	const out: Record<string, string> = {};
-	if (!input) return out;
-	for (const [key, value] of Object.entries(input)) {
-		if (typeof value === "string" && value.trim() !== "") {
-			out[key] = value;
-		}
-	}
-	return out;
-};
-
-const mergeMetadata = (
-	...sources: Array<Record<string, string | undefined> | undefined>
-): Record<string, string> => {
-	const merged: Record<string, string> = {};
-	for (const source of sources) {
-		if (!source) continue;
-		for (const [key, value] of Object.entries(source)) {
-			if (typeof value === "string" && value.trim() !== "") {
-				merged[key] = value;
-			}
-		}
-	}
-	return merged;
-};
-
-const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
-	const out: Record<string, string> = {};
-	if (!input) return out;
-	for (const [key, value] of Object.entries(input)) {
-		if (typeof value === "string" && value.trim() !== "") {
-			out[key] = value;
-		}
-	}
-	return out;
-};
-
-const mergeMetadata = (
-	...sources: Array<Record<string, string | undefined> | undefined>
-): Record<string, string> => {
-	const merged: Record<string, string> = {};
-	for (const source of sources) {
-		if (!source) continue;
-		for (const [key, value] of Object.entries(source)) {
-			if (typeof value === "string" && value.trim() !== "") {
-				merged[key] = value;
-			}
-		}
-	}
-	return merged;
 };
 
 const toStringRecord = (input?: Stripe.Metadata | null): Record<string, string> => {
@@ -129,19 +50,29 @@ const mergeMetadata = (
 
 export async function POST(req: Request) {
 	try {
+		console.log("📩 Incoming checkout request...");
+
 		const body = (await req.json()) as { cart?: CartItem[] };
 		const { cart } = body;
+		console.log("🛒 Cart body:", JSON.stringify(cart, null, 2));
+
+		const baseUrl = requireEnv("NEXT_PUBLIC_URL"); // e.g. https://www.crystalthedeveloper.ca
+		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""; // e.g. /store
+		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
+
+		console.log("🌐 Base URL:", baseUrl);
+		console.log("📂 Base Path:", basePath);
 
 		if (!cart || cart.length === 0) {
+			console.warn("⚠️ Cart is empty!");
 			return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 		}
 
-		const baseUrl = requireEnv("NEXT_PUBLIC_URL");
-		const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-		const stripeSecret = requireEnv("STRIPE_SECRET_KEY");
-
+		// ✅ Lock to Stripe’s pinned API version (Cloudflare-safe client)
 		const stripe = createStripeClient(stripeSecret);
+		console.log("✅ Stripe client initialized for checkout");
 
+		// ✅ Build Stripe line items
 		const detailedItems = await Promise.all(
 			cart.map(async (item) => {
 				let price: Stripe.Price | null = null;
@@ -152,6 +83,9 @@ export async function POST(req: Request) {
 				return { item, price, isSubscription };
 			}),
 		);
+
+		const subscriptionItems = detailedItems.filter((entry) => entry.isSubscription);
+		const oneTimeItems = detailedItems.filter((entry) => !entry.isSubscription);
 
 		const makeLineItem = (entry: (typeof detailedItems)[number]) => {
 			const { item, price } = entry;
@@ -213,11 +147,10 @@ export async function POST(req: Request) {
 
 			return {
 				price_data: {
-					currency,
+					currency: "cad",
 					product_data: {
-						name: displayName,
+						name: item.name,
 						...(item.image && { images: [item.image] }),
-						metadata: productMetadata,
 					},
 					unit_amount: Math.round(item.price),
 				},
@@ -274,9 +207,8 @@ export async function POST(req: Request) {
 			return NextResponse.json({ url: paymentSession.url });
 		}
 
-		const line_items = subscriptionItems.length > 0 ? subscriptionItems : oneTimeItems;
-		const mode = subscriptionItems.length > 0 ? "subscription" : "payment";
-
+		const line_items = subscriptionLineItems.length > 0 ? subscriptionLineItems : oneTimeLineItems;
+		const mode = subscriptionLineItems.length > 0 ? "subscription" : "payment";
 		const session = await stripe.checkout.sessions.create({
 			mode,
 			line_items,
@@ -298,6 +230,6 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: err.message }, { status: 500 });
 		}
 		console.error("❌ Stripe checkout unknown error:", err);
-		return NextResponse.json({ error: "Unknown error" }, { status: 500 });
+		return NextResponse.json({ error: "Unknown error creating checkout session" }, { status: 500 });
 	}
 }
