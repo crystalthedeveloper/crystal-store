@@ -25,19 +25,11 @@ const { publicRuntimeConfig } = getConfig();
 
 export default async function Home() {
 	const t = await getTranslations("/");
-	// 🔔 Temporary notice at the very top
-	const NoticeBanner = () => (
-		<div className="w-full bg-yellow-400 text-black text-center py-2 font-semibold z-20">
-			⚠️ Under Construction — New eCommerce Store (Next.js + Webflow Cloud)
-		</div>
-	);
 
 	// Safe preview if Stripe isn’t configured
 	if (!env.STRIPE_SECRET_KEY) {
 		return (
 			<>
-				<NoticeBanner />
-
 				<main>
 					<section className="rounded bg-neutral-100 py-8 sm:py-12">
 						<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
@@ -119,8 +111,6 @@ export default async function Home() {
 
 	return (
 		<main>
-			<NoticeBanner />
-
 			<section className="rounded bg-neutral-100 py-8 sm:py-12">
 				<div className="mx-auto grid grid-cols-1 items-center justify-items-center gap-8 px-8 sm:px-16 md:grid-cols-2">
 					<div className="max-w-md space-y-4">
