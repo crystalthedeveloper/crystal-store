@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { env } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { createStripeClient } from "@/lib/stripe/client";
-import { formatMoney, formatMoney, formatProductName } from "@/lib/utils";
+import { formatMoney, formatProductName } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,25 +103,46 @@ export default async function OrderDetailsPage({
 			<h2 className="sr-only">{t("productsTitle")}</h2>
 			{/* Products List */}
 			<ul role="list" className="my-8 space-y-6">
-				{session.line_items?.data.map((line) => {
+				{allLineItems.map((line) => {
 					const product = line.price?.product;
+					const priceMetadata = (line.price?.metadata ?? {}) as Record<string, string | undefined>;
+					const productMetadata =
+						typeof product === "object" && product && !product.deleted
+							? ((product.metadata ?? {}) as Record<string, string | undefined>)
+							: {};
+					const baseName =
+						typeof product === "object" && product && !product.deleted
+							? (product.name ?? line.description ?? "Product")
+							: (line.description ?? "Product");
+					const color = priceMetadata.color ?? productMetadata.color;
+					const size = priceMetadata.size ?? productMetadata.size;
+					const variantFallback = priceMetadata.variant ?? productMetadata.variant;
+
+					// ✅ Join parts safely into one string
+					const variantString = [color, size, variantFallback].filter(Boolean).join(" ");
+					const displayName = formatProductName(baseName, variantString);
+
 					return (
 						<li key={line.id} className="flex items-start gap-6 rounded-lg border p-4 shadow-sm">
 							{/* Product Image */}
-							{product && Array.isArray(product.images) && product.images.length > 0 && (
-								<Image
-									src={product.images[0] as string} // ✅ force type safe, never undefined
-									alt={displayName}
-									width={100}
-									height={100}
-									className="h-24 w-24 rounded-md object-cover"
-									priority
-								/>
-							)}
+							{typeof product === "object" &&
+								product &&
+								"images" in product &&
+								Array.isArray(product.images) &&
+								product.images.length > 0 && (
+									<Image
+										src={product.images[0] as string}
+										alt={displayName}
+										width={100}
+										height={100}
+										className="h-24 w-24 rounded-md object-cover"
+										priority
+									/>
+								)}
 
 							{/* Product Details */}
 							<div className="flex-1">
-								<h3 className="font-semibold text-lg text-neutral-900">{line.description}</h3>
+								<h3 className="font-semibold text-lg text-neutral-900">{displayName}</h3>
 
 								<div className="mt-2 grid grid-cols-3 gap-4 text-sm text-muted-foreground leading-relaxed">
 									<div>

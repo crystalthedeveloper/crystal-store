@@ -1,4 +1,4 @@
-// root layout
+// src/app/layout.tsx
 import "@/app/globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -6,7 +6,6 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { CartModalPage } from "@/app/(store)/cart/cart-modal";
 import { Toaster } from "@/components/ui/sonner";
-// ✅ import cart modal context + page
 import { CartModalProvider } from "@/context/cart-modal";
 import { env, publicUrl } from "@/env.mjs";
 import { IntlClientProvider } from "@/i18n/client";
@@ -21,31 +20,34 @@ export const generateMetadata = async (): Promise<Metadata> => {
 	};
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+	// ✅ Server-side fetch of i18n state
 	const locale = await getLocale();
 	const messages = await getMessages();
 
 	return (
 		<html lang={locale} className="h-full antialiased">
 			<body className="flex min-h-full flex-col">
-				<IntlClientProvider messages={messages} locale={locale}>
+				{/* ✅ Wrap the whole app in IntlClientProvider */}
+				<IntlClientProvider locale={locale} messages={messages}>
 					<CartModalProvider>
 						<div className="flex min-h-full flex-1 flex-col bg-white" vaul-drawer-wrapper="">
 							{children}
 						</div>
 
-						{/* ✅ Global CartModal mounted here */}
+						{/* ✅ Global CartModal */}
 						<CartModalPage />
 
 						<Toaster position="top-center" offset={10} />
 					</CartModalProvider>
 				</IntlClientProvider>
 
+				{/* Analytics + Scripts */}
 				{env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
 					<Script
 						async
 						src="/stats/script.js"
-						data-host-url={publicUrl + "/stats"}
+						data-host-url={`${publicUrl}/stats`}
 						data-website-id={env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
 					/>
 				)}
