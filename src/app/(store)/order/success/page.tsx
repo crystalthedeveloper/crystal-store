@@ -33,9 +33,8 @@ export default async function OrderDetailsPage({
 
 	const sp = await searchParams;
 	const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined;
-	const nextUrl =
-		typeof sp.next === "string" ? Buffer.from(sp.next, "base64url").toString("utf8") : undefined;
-	if (nextUrl) redirect(nextUrl);
+	const subscriptionSessionId =
+		typeof sp.subscription_session_id === "string" ? sp.subscription_session_id : undefined;
 
 	if (!sessionId) return <div>Missing session_id</div>;
 
@@ -52,14 +51,41 @@ export default async function OrderDetailsPage({
 		);
 	}
 
+	if (subscriptionSessionId && subscriptionSessionId !== sessionId) {
+		const subscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
+		if (subscriptionSession?.url) {
+			redirect(subscriptionSession.url);
+		}
+	}
+
 	const session = await stripe.checkout.sessions.retrieve(sessionId, {
 		expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
 	});
 
 	if (!session) return <div>Order not found</div>;
 
+	const linkedSessions: Stripe.Checkout.Session[] = [session];
+	const linkedPaymentSessionId = session.metadata?.payment_session_id;
+
+	if (typeof linkedPaymentSessionId === "string" && linkedPaymentSessionId) {
+		try {
+			const linkedSession = await stripe.checkout.sessions.retrieve(linkedPaymentSessionId, {
+				expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
+			});
+
+			if (linkedSession) {
+				linkedSessions.push(linkedSession);
+			}
+		} catch (error) {
+			console.error("Unable to load linked checkout session", error);
+		}
+	}
+
 	const t = await getTranslations("/order.page");
 	const locale = await getLocale();
+	const allLineItems = linkedSessions.flatMap((s) => s.line_items?.data ?? []);
+	const totalAmount = linkedSessions.reduce((sum, s) => sum + (s.amount_total ?? 0), 0);
+	const currency = session.currency ?? linkedSessions.find((s) => s.currency)?.currency ?? "usd";
 
 	return (
 		<article className="max-w-3xl pb-32">
@@ -77,7 +103,7 @@ export default async function OrderDetailsPage({
 			<h2 className="sr-only">{t("productsTitle")}</h2>
 			{/* Products List */}
 			<ul role="list" className="my-8 space-y-6">
-				{session.line_items?.data.map((line) => {
+				{allLineItems.map((line) => {
 					const product = line.price?.product;
 					const priceMetadata = (line.price?.metadata ?? {}) as Record<string, string | undefined>;
 					const productMetadata =
@@ -151,8 +177,8 @@ export default async function OrderDetailsPage({
 				<h3 className="font-semibold leading-none text-neutral-700">{t("total")}</h3>
 				<p className="leading-relaxed">
 					{formatMoney({
-						amount: session.amount_total ?? 0,
-						currency: session.currency ?? "usd",
+						amount: totalAmount,
+						currency,
 						locale,
 					})}
 				</p>

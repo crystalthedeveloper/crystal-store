@@ -183,20 +183,21 @@ export async function POST(req: Request) {
 				cancel_url: `${baseUrl}${basePath}/cart`,
 			});
 
-			const nextParam = subscriptionSession.url
-				? Buffer.from(subscriptionSession.url).toString("base64url")
-				: "";
-
 			const paymentSession = await stripe.checkout.sessions.create({
 				mode: "payment",
 				line_items: oneTimeLineItems,
 				billing_address_collection: "required",
 				shipping_address_collection: shippingAddressCollection,
 				automatic_tax: { enabled: true },
-				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}${
-					nextParam ? `&next=${nextParam}` : ""
-				}`,
+				success_url: `${baseUrl}${basePath}/order/success?session_id={CHECKOUT_SESSION_ID}&subscription_session_id=${subscriptionSession.id}`,
 				cancel_url: `${baseUrl}${basePath}/cart`,
+			});
+
+			await stripe.checkout.sessions.update(subscriptionSession.id, {
+				metadata: {
+					...(subscriptionSession.metadata ?? {}),
+					payment_session_id: paymentSession.id,
+				},
 			});
 
 			if (!paymentSession.url) {
