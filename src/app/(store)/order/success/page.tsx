@@ -75,9 +75,16 @@ export default async function OrderDetailsPage({
 
 	let initialSubscriptionSession: Stripe.Checkout.Session | null = null;
 
+	const sessionExpandArgs: Stripe.Checkout.SessionRetrieveParams = {
+		expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
+	};
+
 	if (subscriptionSessionId && subscriptionSessionId !== sessionId) {
 		try {
-			initialSubscriptionSession = await stripe.checkout.sessions.retrieve(subscriptionSessionId);
+			initialSubscriptionSession = await stripe.checkout.sessions.retrieve(
+				subscriptionSessionId,
+				sessionExpandArgs,
+			);
 			if (!skipSubscriptionRedirect && initialSubscriptionSession?.url) {
 				redirect(initialSubscriptionSession.url);
 			}
@@ -86,9 +93,7 @@ export default async function OrderDetailsPage({
 		}
 	}
 
-	const session = await stripe.checkout.sessions.retrieve(sessionId, {
-		expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
-	});
+	const session = await stripe.checkout.sessions.retrieve(sessionId, sessionExpandArgs);
 
 	if (!session) return <div>Order not found</div>;
 
@@ -127,9 +132,7 @@ export default async function OrderDetailsPage({
 		}
 
 		try {
-			const linkedSession = await stripe.checkout.sessions.retrieve(id, {
-				expand: ["line_items", "line_items.data.price.product", "payment_intent", "customer"],
-			});
+			const linkedSession = await stripe.checkout.sessions.retrieve(id, sessionExpandArgs);
 
 			if (linkedSession && linkedSession.status === "complete") {
 				linkedSessions.push(linkedSession);
