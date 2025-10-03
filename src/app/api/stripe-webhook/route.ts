@@ -19,6 +19,53 @@ function toStringRecord(input: Record<string, unknown>): Record<string, string> 
 	return out;
 }
 
+/**
+ * Parse boolean-like values commonly found in metadata fields.
+ * Accepts strings like "true", "1", "yes", numbers 1/0, etc.
+ */
+function parseBooleanish(value: unknown): boolean | undefined {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "number") return value === 1;
+	if (typeof value !== "string") return undefined;
+
+	const s = value.trim().toLowerCase();
+	if (s === "true" || s === "1" || s === "yes" || s === "y" || s === "on") return true;
+	if (s === "false" || s === "0" || s === "no" || s === "n" || s === "off") return false;
+	return undefined;
+}
+
+/**
+ * Check a product/price metadata object for flags that indicate Printful should be ignored
+ * or that the variant/product has been discontinued. Returns true if the item should be skipped.
+ */
+function hasIgnoreOrDiscontinuedFlag(meta: Record<string, unknown> | undefined): boolean {
+	if (!meta) return false;
+
+	const checkKeys = [
+		"printful_ignored",
+		"printful_ignore",
+		"ignore_printful",
+		"skip_printful",
+		"printful_discontinued",
+		"discontinued",
+		"is_discontinued",
+		"status",
+	];
+
+	for (const key of checkKeys) {
+		if (key in meta) {
+			const v = meta[key as keyof typeof meta];
+			// For status-like fields, also allow the string 'discontinued'
+			if (typeof v === "string" && v.trim().toLowerCase() === "discontinued") return true;
+
+			const parsed = parseBooleanish(v);
+			if (parsed === true) return true;
+		}
+	}
+
+	return false;
+}
+
 export async function POST(req: Request) {
 	const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
 	const stripeSecret = env.STRIPE_SECRET_KEY;
@@ -84,13 +131,25 @@ export async function POST(req: Request) {
 							// Skip if not apparel
 							if (category !== "apparel") return null;
 
+							// Skip if price or product metadata explicitly mark this item to be ignored
+							if (
+								hasIgnoreOrDiscontinuedFlag(price?.metadata) ||
+								hasIgnoreOrDiscontinuedFlag(productObj?.metadata)
+							) {
+								console.warn(
+									"⚠️ Skipping Printful item because metadata indicates ignore/discontinued:",
+									item.description,
+								);
+								return null;
+							}
+
 							// Find Printful variant ID (first check price.metadata, then product.metadata)
 							const syncIdRaw =
-								price?.metadata?.printful_sync_variant_id ??
-								price?.metadata?.sync_variant_id ??
-								productObj?.metadata?.printful_sync_variant_id ??
-								productObj?.metadata?.printful_sync_product_id ??
-								productObj?.metadata?.sync_variant_id ??
+								(price?.metadata?.printful_sync_variant_id as unknown) ??
+								(price?.metadata?.sync_variant_id as unknown) ??
+								(productObj?.metadata?.printful_sync_variant_id as unknown) ??
+								(productObj?.metadata?.printful_sync_product_id as unknown) ??
+								(productObj?.metadata?.sync_variant_id as unknown) ??
 								null;
 
 							const syncIdNum = Number(syncIdRaw);
@@ -99,13 +158,42 @@ export async function POST(req: Request) {
 								return null;
 							}
 
-							// Verify variant exists in Printful
-							const ok = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
-								headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
-							}).then((r) => r.ok);
+							// Retrieve variant details from Printful and inspect for discontinuation/archived flags
+							try {
+								const r = await fetch(`https://api.printful.com/store/variants/${syncIdNum}`, {
+									headers: { Authorization: `Bearer ${env.PRINTFUL_API_KEY}` },
+								});
 
-							if (!ok) {
-								console.warn(`⚠️ Printful variant ${syncIdNum} not found`);
+								if (!r.ok) {
+									console.warn(`⚠️ Printful variant ${syncIdNum} not found (status ${r.status})`);
+									return null;
+								}
+
+								const json = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+								// Printful variant responses commonly have a `result` object with variant details
+								const variant = (json && (json.result ?? json)) as Record<string, unknown> | undefined;
+
+								// Inspect variant-level flags that indicate the variant is discontinued/archived
+								if (variant) {
+									// Some Printful responses may include a boolean or string flag
+									if (hasIgnoreOrDiscontinuedFlag(variant as Record<string, unknown>)) {
+										console.warn(
+											`⚠️ Printful variant ${syncIdNum} is marked discontinued/ignored by Printful; skipping`,
+										);
+										return null;
+									}
+
+									// Also check nested product/status fields
+									const productInfo = (variant.product ?? variant) as Record<string, unknown> | undefined;
+									if (productInfo && hasIgnoreOrDiscontinuedFlag(productInfo)) {
+										console.warn(
+											`⚠️ Printful variant ${syncIdNum} product marked discontinued/ignored; skipping`,
+										);
+										return null;
+									}
+								}
+							} catch (err) {
+								console.warn(`⚠️ Error fetching Printful variant ${syncIdNum}:`, err);
 								return null;
 							}
 
