@@ -132,17 +132,17 @@ export default async function OrderDetailsPage({
 					const size = getFirstMetadataValue(priceMetadata, SIZE_METADATA_KEYS);
 					const priceVariant = getFirstMetadataValue(priceMetadata, VARIANT_METADATA_KEYS);
 					const productVariant = getFirstMetadataValue(productMetadata, VARIANT_METADATA_KEYS);
-					const hasPriceVariantDetails = Boolean(priceVariant ?? priceColor ?? size);
-					const variantMetadata = hasPriceVariantDetails ? priceMetadata : productMetadata;
 					const baseName =
 						typeof product === "object" && product && !product.deleted
 							? (product.name ?? line.description ?? "Product")
 							: (line.description ?? "Product");
 					const variantFallback = priceVariant ?? productVariant;
+					const shouldUseMetadata = !variantFallback && !color && !size;
+					const metadataForParts = shouldUseMetadata ? { ...productMetadata, ...priceMetadata } : undefined;
 					const variantParts = collectVariantDisplayParts({
 						additional: [color, size],
 						variant: variantFallback,
-						metadata: variantMetadata,
+						metadata: metadataForParts,
 					});
 					const displayName = formatProductName(baseName, variantParts);
 					return (
