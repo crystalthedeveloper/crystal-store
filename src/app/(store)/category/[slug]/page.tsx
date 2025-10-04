@@ -66,6 +66,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 	const { slug } = await params;
 	const categoryName = deslugify(slug);
 	const t = await getTranslations("/category.page");
+	const descriptionKeyMap = {
+		webflow: "descriptions.webflow",
+		apparel: "descriptions.apparel",
+		support: "descriptions.support",
+		maintenance: "descriptions.maintenance",
+	} as const;
+	const descriptionKey = descriptionKeyMap[slug as keyof typeof descriptionKeyMap];
+	const categoryDescription = descriptionKey ? t(descriptionKey) : undefined;
 
 	// Early return if Stripe not configured
 	if (!env.STRIPE_SECRET_KEY) {
@@ -109,6 +117,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 				{categoryName}
 				<div className="text-lg font-semibold text-muted-foreground">{t("title", { categoryName })}</div>
 			</h1>
+			{categoryDescription ? (
+				<p className="mt-2 max-w-2xl text-sm text-muted-foreground">{categoryDescription}</p>
+			) : null}
 
 			{hasProducts ? (
 				<ProductList products={products} />
@@ -120,6 +131,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 					<p className="max-w-2xl text-sm text-muted-foreground">
 						{t("empty.description", { categoryName })}
 					</p>
+
 					<YnsLink
 						href="/products"
 						className="inline-flex w-fit items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
