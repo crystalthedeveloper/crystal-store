@@ -32,7 +32,7 @@
 	"Global.deliveryEstimates.week": "{count, plural, =1 {# week} other {# weeks}}",
 	"Global.actions.shopNow": "Shop now",
 	"/.hero.title": "Build, Create, and Support",
-	"/.hero.description": "Explore Webflow templates, apps, apparel, and support options — everything to keep projects, creativity, and code flowing.",
+	"/.hero.description": "Explore Webflow templates, apps, apparel, and support options designed to keep projects, creativity, and code flowing. Whether you're launching a new site, maintaining a project, or just supporting Crystal’s journey, you’re helping push the web forward.",
 	"/.hero.action": "Shop Now",
 	"/.support.action": "Support Crystal",
 	"/.hero.link": "/category/webflow",
