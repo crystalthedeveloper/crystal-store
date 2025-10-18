@@ -96,7 +96,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 		const ordered = results.sort((a, b) => {
 			const aOrder = Number(a.metadata.order ?? Infinity);
 			const bOrder = Number(b.metadata.order ?? Infinity);
-			return aOrder - bOrder;
+			return bOrder - aOrder;
 		});
 		products = ordered.map((product) => mapProductToNormalized(product, slug));
 		console.log("[category] products loaded", {
